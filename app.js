@@ -726,11 +726,9 @@ async function initPageViewCounter() {
     const viewsCountEl = document.getElementById('views-count');
     
     try {
-        // 使用自己的伺服器端 API 提供全站訪問統計
-        const apiUrl = '/api/pageviews/hit';
-        
-        // 發送請求並增加計數
-        const response = await fetch(apiUrl, {
+        // 首次訪問：增加計數
+        const hitUrl = '/api/pageviews/hit';
+        const response = await fetch(hitUrl, {
             method: 'GET',
             cache: 'no-cache'
         });
@@ -746,6 +744,9 @@ async function initPageViewCounter() {
             const formattedViews = data.value.toLocaleString('zh-HK');
             viewsCountEl.textContent = formattedViews;
             console.log(`全站訪問次數: ${data.value}`);
+            
+            // 啟動實時更新（每10秒更新一次）
+            startRealtimeViewsUpdate();
         } else {
             throw new Error('無效的 API 回應');
         }
@@ -765,6 +766,54 @@ async function initPageViewCounter() {
             viewsCountEl.textContent = '無法載入';
         }
     }
+}
+
+// 實時更新訪問量（不增加計數，只獲取）
+async function updatePageViews() {
+    const viewsCountEl = document.getElementById('views-count');
+    
+    try {
+        const getUrl = '/api/pageviews/get';
+        const response = await fetch(getUrl, {
+            method: 'GET',
+            cache: 'no-cache'
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data && typeof data.value === 'number') {
+                const currentText = viewsCountEl.textContent.replace(/,/g, '');
+                const currentValue = parseInt(currentText) || 0;
+                
+                // 只在數字變化時更新並添加動畫
+                if (data.value !== currentValue) {
+                    const formattedViews = data.value.toLocaleString('zh-HK');
+                    viewsCountEl.textContent = formattedViews;
+                    
+                    // 添加脈衝動畫
+                    viewsCountEl.style.transform = 'scale(1.2)';
+                    viewsCountEl.style.transition = 'transform 0.3s ease';
+                    
+                    setTimeout(() => {
+                        viewsCountEl.style.transform = 'scale(1)';
+                    }, 300);
+                    
+                    console.log(`訪問量更新: ${currentValue} → ${data.value}`);
+                }
+            }
+        }
+    } catch (error) {
+        // 靜默失敗，不影響用戶體驗
+        console.log('更新訪問量失敗:', error.message);
+    }
+}
+
+// 啟動實時更新
+function startRealtimeViewsUpdate() {
+    // 每10秒更新一次訪問量
+    setInterval(() => {
+        updatePageViews();
+    }, 10000);
 }
 
 // 啟動頁面計數器

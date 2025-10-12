@@ -358,6 +358,20 @@ footer {
     font-weight: bold;
     color: #4CAF50;
     font-size: 14px;
+    transition: transform 0.3s ease;
+}
+
+.views-live-indicator {
+    font-size: 11px;
+    color: #ff4444;
+    font-weight: bold;
+    margin-left: 8px;
+    animation: blink 2s infinite;
+}
+
+@keyframes blink {
+    0%, 50%, 100% { opacity: 1; }
+    25%, 75% { opacity: 0.3; }
 }
 
 .status-indicator {

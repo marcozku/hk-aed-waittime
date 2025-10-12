@@ -726,43 +726,54 @@ async function initPageViewCounter() {
     const viewsCountEl = document.getElementById('views-count');
     
     try {
+        console.log('🚀 開始初始化頁面計數器...');
+        
         // 首次訪問：增加計數
         const hitUrl = '/api/pageviews/hit';
+        console.log('📡 正在請求:', hitUrl);
+        
         const response = await fetch(hitUrl, {
             method: 'GET',
             cache: 'no-cache'
         });
+        
+        console.log('📥 收到回應:', response.status, response.statusText);
         
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}: 無法連接計數 API`);
         }
         
         const data = await response.json();
+        console.log('📦 解析數據:', data);
         
         if (data && typeof data.value === 'number') {
             // 格式化數字（添加千分位符號）
             const formattedViews = data.value.toLocaleString('zh-HK');
             viewsCountEl.textContent = formattedViews;
-            console.log(`全站訪問次數: ${data.value}`);
+            console.log(`✅ 全站訪問次數: ${data.value}`);
             
             // 啟動實時更新（每10秒更新一次）
             startRealtimeViewsUpdate();
         } else {
-            throw new Error('無效的 API 回應');
+            throw new Error(`無效的 API 回應: ${JSON.stringify(data)}`);
         }
         
     } catch (error) {
-        console.error('初始化頁面計數器失敗:', error);
+        console.error('❌ 初始化頁面計數器失敗:', error);
+        console.error('錯誤詳情:', error.message);
         
         // 失敗時回退到本地統計
         try {
+            console.log('⚠️ 回退到本地統計模式');
             let localViews = parseInt(localStorage.getItem('pageViews') || '0');
             localViews++;
             localStorage.setItem('pageViews', localViews.toString());
             
             const formattedViews = localViews.toLocaleString('zh-HK');
             viewsCountEl.textContent = `${formattedViews} (本地)`;
+            console.log('📍 本地計數:', localViews);
         } catch (localError) {
+            console.error('❌ 本地統計也失敗:', localError);
             viewsCountEl.textContent = '無法載入';
         }
     }

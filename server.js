@@ -3,11 +3,20 @@ const fs = require('fs');
 const path = require('path');
 
 const PORT = process.env.PORT || 8080;
-const COUNTER_FILE = './page-views.txt';
+const COUNTER_FILE = path.join(__dirname, 'page-views.txt');
 
 // 初始化計數器文件
-if (!fs.existsSync(COUNTER_FILE)) {
-    fs.writeFileSync(COUNTER_FILE, '0');
+try {
+    if (!fs.existsSync(COUNTER_FILE)) {
+        console.log('創建計數器文件:', COUNTER_FILE);
+        fs.writeFileSync(COUNTER_FILE, '0');
+    } else {
+        console.log('計數器文件已存在:', COUNTER_FILE);
+        const currentCount = fs.readFileSync(COUNTER_FILE, 'utf8');
+        console.log('當前計數:', currentCount);
+    }
+} catch (error) {
+    console.error('初始化計數器失敗:', error);
 }
 
 // MIME types
@@ -29,9 +38,10 @@ function incrementCounter() {
         let count = parseInt(fs.readFileSync(COUNTER_FILE, 'utf8') || '0');
         count++;
         fs.writeFileSync(COUNTER_FILE, count.toString());
+        console.log(`✅ 計數器增加: ${count}`);
         return count;
     } catch (error) {
-        console.error('計數器錯誤:', error);
+        console.error('❌ 計數器錯誤:', error);
         return 0;
     }
 }
@@ -39,35 +49,44 @@ function incrementCounter() {
 // 只讀取計數器（不增加）
 function getCounter() {
     try {
-        return parseInt(fs.readFileSync(COUNTER_FILE, 'utf8') || '0');
+        const count = parseInt(fs.readFileSync(COUNTER_FILE, 'utf8') || '0');
+        console.log(`📊 讀取計數: ${count}`);
+        return count;
     } catch (error) {
-        console.error('讀取計數器錯誤:', error);
+        console.error('❌ 讀取計數器錯誤:', error);
         return 0;
     }
 }
 
 const server = http.createServer((req, res) => {
-    console.log(`${req.method} ${req.url}`);
+    const timestamp = new Date().toISOString();
+    console.log(`[${timestamp}] ${req.method} ${req.url}`);
 
     // API 端點：獲取並增加訪問計數
     if (req.url === '/api/pageviews/hit') {
+        console.log('🔥 API hit 端點被調用');
         const count = incrementCounter();
+        const response = { value: count };
         res.writeHead(200, { 
             'Content-Type': 'application/json',
             'Access-Control-Allow-Origin': '*'
         });
-        res.end(JSON.stringify({ value: count }));
+        res.end(JSON.stringify(response));
+        console.log('✅ 返回計數:', response);
         return;
     }
 
     // API 端點：只獲取訪問計數（不增加）
     if (req.url === '/api/pageviews/get') {
+        console.log('📊 API get 端點被調用');
         const count = getCounter();
+        const response = { value: count };
         res.writeHead(200, { 
             'Content-Type': 'application/json',
             'Access-Control-Allow-Origin': '*'
         });
-        res.end(JSON.stringify({ value: count }));
+        res.end(JSON.stringify(response));
+        console.log('✅ 返回計數:', response);
         return;
     }
 

@@ -726,22 +726,22 @@ async function initPageViewCounter() {
     const viewsCountEl = document.getElementById('views-count');
     
     try {
-        // 使用 CountAPI 提供全站訪問統計
-        // 格式: https://api.countapi.xyz/hit/{namespace}/{key}
-        const namespace = 'hk-aed-waittime';
-        const key = 'page-views';
-        const apiUrl = `https://api.countapi.xyz/hit/${namespace}/${key}`;
+        // 使用自己的伺服器端 API 提供全站訪問統計
+        const apiUrl = '/api/pageviews/hit';
         
         // 發送請求並增加計數
-        const response = await fetch(apiUrl);
+        const response = await fetch(apiUrl, {
+            method: 'GET',
+            cache: 'no-cache'
+        });
         
         if (!response.ok) {
-            throw new Error('無法連接計數 API');
+            throw new Error(`HTTP ${response.status}: 無法連接計數 API`);
         }
         
         const data = await response.json();
         
-        if (data && data.value) {
+        if (data && typeof data.value === 'number') {
             // 格式化數字（添加千分位符號）
             const formattedViews = data.value.toLocaleString('zh-HK');
             viewsCountEl.textContent = formattedViews;

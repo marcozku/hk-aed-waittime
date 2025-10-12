@@ -21,6 +21,9 @@ pids
 *.seed
 *.pid.lock
 
+# Page view counter data
+page-views.txt
+
 # Temporary files
 .tmp/
 temp/

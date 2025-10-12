@@ -21,18 +21,31 @@ try {
 // 初始化計數器文件
 try {
     if (!fs.existsSync(COUNTER_FILE)) {
+        // 使用環境變量的初始值（如果 Volume 未配置）
+        const initialValue = process.env.INITIAL_PAGE_VIEWS || '0';
         console.log('📄 創建計數器文件:', COUNTER_FILE);
-        fs.writeFileSync(COUNTER_FILE, '0');
+        console.log('📊 初始計數值:', initialValue);
+        fs.writeFileSync(COUNTER_FILE, initialValue);
+        
+        // 警告：如果多次看到這個消息，說明 Volume 未正確配置
+        if (process.env.RAILWAY_ENVIRONMENT) {
+            console.warn('⚠️ 警告：計數器文件不存在，創建新文件');
+            console.warn('⚠️ 如果這不是首次部署，請檢查 Railway Volume 配置');
+            console.warn('⚠️ 詳見：RAILWAY-VOLUME-SETUP.md');
+        }
     } else {
         console.log('✅ 計數器文件已存在:', COUNTER_FILE);
         const currentCount = fs.readFileSync(COUNTER_FILE, 'utf8');
         console.log('📊 當前計數:', currentCount);
+        console.log('🎉 數據持久化正常工作！');
     }
 } catch (error) {
     console.error('❌ 初始化計數器失敗:', error);
 }
 
 console.log('💾 數據持久化路徑:', COUNTER_FILE);
+console.log('🔧 Volume 掛載路徑:', process.env.RAILWAY_VOLUME_MOUNT_PATH || '未配置');
+console.log('📝 初始值設定:', process.env.INITIAL_PAGE_VIEWS || '0 (默認)');
 
 // MIME types
 const mimeTypes = {

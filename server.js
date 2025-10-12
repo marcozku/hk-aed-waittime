@@ -112,13 +112,19 @@ const server = http.createServer((req, res) => {
     const timestamp = new Date().toISOString();
     console.log(`[${timestamp}] ${req.method} ${req.url}`);
 
+    // 解析 URL（移除查詢字符串用於路由判斷）
+    const urlPath = req.url.split('?')[0];
+
     // API 端點：獲取並增加訪問計數
-    if (req.url === '/api/pageviews/hit') {
+    if (urlPath === '/api/pageviews/hit') {
         console.log('🔥 API hit 端點被調用');
         const count = incrementCounter();
         const response = { value: count };
         res.writeHead(200, { 
             'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0',
             'Access-Control-Allow-Origin': '*'
         });
         res.end(JSON.stringify(response));
@@ -127,12 +133,15 @@ const server = http.createServer((req, res) => {
     }
 
     // API 端點：只獲取訪問計數（不增加）
-    if (req.url === '/api/pageviews/get') {
+    if (urlPath === '/api/pageviews/get') {
         console.log('📊 API get 端點被調用');
         const count = getCounter();
         const response = { value: count };
         res.writeHead(200, { 
             'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0',
             'Access-Control-Allow-Origin': '*'
         });
         res.end(JSON.stringify(response));

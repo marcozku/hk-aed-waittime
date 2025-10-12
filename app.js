@@ -774,14 +774,22 @@ async function initPageViewCounter() {
     
     try {
         console.log('🚀 開始初始化頁面計數器...');
+        console.log('📱 瀏覽器:', navigator.userAgent);
         
         // 首次訪問：增加計數
-        const hitUrl = '/api/pageviews/hit';
+        // 添加時間戳參數避免 iOS Safari 緩存
+        const timestamp = Date.now();
+        const hitUrl = `/api/pageviews/hit?_t=${timestamp}`;
         console.log('📡 正在請求:', hitUrl);
         
         const response = await fetch(hitUrl, {
             method: 'GET',
-            cache: 'no-cache'
+            cache: 'no-store',
+            headers: {
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+            }
         });
         
         console.log('📥 收到回應:', response.status, response.statusText);
@@ -831,10 +839,16 @@ async function updatePageViews() {
     const viewsCountEl = document.getElementById('views-count');
     
     try {
-        const getUrl = '/api/pageviews/get';
+        // 添加時間戳避免 iOS Safari 緩存
+        const timestamp = Date.now();
+        const getUrl = `/api/pageviews/get?_t=${timestamp}`;
         const response = await fetch(getUrl, {
             method: 'GET',
-            cache: 'no-cache'
+            cache: 'no-store',
+            headers: {
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache'
+            }
         });
         
         if (response.ok) {

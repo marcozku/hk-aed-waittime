@@ -3,21 +3,36 @@ const fs = require('fs');
 const path = require('path');
 
 const PORT = process.env.PORT || 8080;
-const COUNTER_FILE = path.join(__dirname, 'page-views.txt');
+
+// 使用持久化目錄（Railway Volume 或本地 data 目錄）
+const DATA_DIR = process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, 'data');
+const COUNTER_FILE = path.join(DATA_DIR, 'page-views.txt');
+
+// 確保數據目錄存在
+try {
+    if (!fs.existsSync(DATA_DIR)) {
+        console.log('📁 創建數據目錄:', DATA_DIR);
+        fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+} catch (error) {
+    console.error('❌ 創建數據目錄失敗:', error);
+}
 
 // 初始化計數器文件
 try {
     if (!fs.existsSync(COUNTER_FILE)) {
-        console.log('創建計數器文件:', COUNTER_FILE);
+        console.log('📄 創建計數器文件:', COUNTER_FILE);
         fs.writeFileSync(COUNTER_FILE, '0');
     } else {
-        console.log('計數器文件已存在:', COUNTER_FILE);
+        console.log('✅ 計數器文件已存在:', COUNTER_FILE);
         const currentCount = fs.readFileSync(COUNTER_FILE, 'utf8');
-        console.log('當前計數:', currentCount);
+        console.log('📊 當前計數:', currentCount);
     }
 } catch (error) {
-    console.error('初始化計數器失敗:', error);
+    console.error('❌ 初始化計數器失敗:', error);
 }
+
+console.log('💾 數據持久化路徑:', COUNTER_FILE);
 
 // MIME types
 const mimeTypes = {

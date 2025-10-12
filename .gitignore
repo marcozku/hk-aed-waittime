@@ -23,6 +23,7 @@ pids
 
 # Page view counter data
 page-views.txt
+data/
 
 # Temporary files
 .tmp/

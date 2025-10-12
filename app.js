@@ -227,9 +227,30 @@ let refreshTimer = null;
 let retryTimer = null;
 let isConnected = false;
 
-// API URLs
-const AED_API_URL = 'https://www.ha.org.hk/opendata/aed/aedwtdata-tc.json';
+// API URLs - 醫管局 API 已於 2025-10-13 更新
+const AED_API_URL = 'https://www.ha.org.hk/opendata/aed/aedwtdata2-tc.json';
 const WEATHER_WARNINGS_URL = 'https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=warnsum&lang=tc';
+
+// Fetch 帶超時功能
+async function fetchWithTimeout(url, timeout = 10000) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+    
+    try {
+        const response = await fetch(url, { 
+            signal: controller.signal,
+            cache: 'no-cache'
+        });
+        clearTimeout(timeoutId);
+        return response;
+    } catch (error) {
+        clearTimeout(timeoutId);
+        if (error.name === 'AbortError') {
+            throw new Error('請求超時');
+        }
+        throw error;
+    }
+}
 
 // 初始化
 document.addEventListener('DOMContentLoaded', () => {
@@ -357,9 +378,9 @@ async function fetchAEDData() {
     try {
         updateConnectionStatus('connecting', '正在連接...');
         
-        const response = await fetch(AED_API_URL);
+        const response = await fetchWithTimeout(AED_API_URL, 10000);
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            throw new Error(`HTTP ${response.status}: 無法獲取數據`);
         }
         
         const data = await response.json();
@@ -430,7 +451,26 @@ async function fetchAEDData() {
         document.getElementById('loading-screen').classList.add('hidden');
         document.getElementById('main-content').classList.remove('hidden');
         
-        updateConnectionStatus('error', `連接失敗: ${error.message} | 將在5秒後重試...`);
+        // 顯示友好的錯誤信息
+        const errorMsg = error.message.includes('請求超時') 
+            ? '連接超時，請檢查網絡連接'
+            : error.message.includes('Failed to fetch') || error.message.includes('NetworkError')
+            ? '網絡連接失敗，請檢查網絡設定'
+            : `連接失敗: ${error.message}`;
+        
+        updateConnectionStatus('error', `${errorMsg} | 將在5秒後重試...`);
+        
+        // 在醫院列表區域顯示錯誤提示
+        const container = document.getElementById('hospitals-container');
+        if (container && currentData.length === 0) {
+            container.innerHTML = `
+                <div style="text-align: center; padding: 40px; color: #666;">
+                    <h3>⚠️ 無法連接到急症室數據系統</h3>
+                    <p>${errorMsg}</p>
+                    <p>系統將自動重試連接...</p>
+                </div>
+            `;
+        }
         
         // 5秒後重試
         if (retryTimer) clearTimeout(retryTimer);
@@ -598,7 +638,7 @@ async function fetchWeatherData() {
     try {
         // 使用香港天文台API
         const weatherUrl = 'https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=rhrread&lang=tc';
-        const response = await fetch(weatherUrl);
+        const response = await fetchWithTimeout(weatherUrl, 8000);
         
         if (!response.ok) throw new Error('無法獲取天氣數據');
         
@@ -623,7 +663,7 @@ async function fetchWeatherData() {
 // 獲取天氣警告
 async function fetchWeatherWarnings() {
     try {
-        const response = await fetch(WEATHER_WARNINGS_URL);
+        const response = await fetchWithTimeout(WEATHER_WARNINGS_URL, 8000);
         if (!response.ok) throw new Error('無法獲取天氣警告');
         
         const data = await response.json();

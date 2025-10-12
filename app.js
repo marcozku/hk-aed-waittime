@@ -768,6 +768,40 @@ async function fetchWeatherWarnings() {
     }
 }
 
+// 使用 XMLHttpRequest 獲取數據（Safari 兼容）
+function fetchPageViewsXHR(url) {
+    return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('GET', url, true);
+        xhr.setRequestHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        xhr.setRequestHeader('Pragma', 'no-cache');
+        
+        xhr.onload = function() {
+            if (xhr.status >= 200 && xhr.status < 300) {
+                try {
+                    const data = JSON.parse(xhr.responseText);
+                    resolve(data);
+                } catch (e) {
+                    reject(new Error('JSON 解析失敗: ' + e.message));
+                }
+            } else {
+                reject(new Error(`HTTP ${xhr.status}: ${xhr.statusText}`));
+            }
+        };
+        
+        xhr.onerror = function() {
+            reject(new Error('網絡請求失敗'));
+        };
+        
+        xhr.ontimeout = function() {
+            reject(new Error('請求超時'));
+        };
+        
+        xhr.timeout = 10000; // 10 秒超時
+        xhr.send();
+    });
+}
+
 // 頁面訪問統計（全站統計）
 async function initPageViewCounter() {
     const viewsCountEl = document.getElementById('views-count');
@@ -775,30 +809,42 @@ async function initPageViewCounter() {
     try {
         console.log('🚀 開始初始化頁面計數器...');
         console.log('📱 瀏覽器:', navigator.userAgent);
+        console.log('🔧 Safari 檢測:', /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent));
         
         // 首次訪問：增加計數
-        // 添加時間戳參數避免 iOS Safari 緩存
+        // 添加時間戳參數和隨機數避免 Safari 緩存
         const timestamp = Date.now();
-        const hitUrl = `/api/pageviews/hit?_t=${timestamp}`;
+        const random = Math.random().toString(36).substring(7);
+        const hitUrl = `/api/pageviews/hit?_t=${timestamp}&_r=${random}`;
         console.log('📡 正在請求:', hitUrl);
         
-        const response = await fetch(hitUrl, {
-            method: 'GET',
-            cache: 'no-store',
-            headers: {
-                'Cache-Control': 'no-cache, no-store, must-revalidate',
-                'Pragma': 'no-cache',
-                'Expires': '0'
+        let data;
+        const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
+        
+        if (isSafari) {
+            console.log('🍎 使用 XMLHttpRequest（Safari 兼容模式）');
+            data = await fetchPageViewsXHR(hitUrl);
+        } else {
+            console.log('🌐 使用 Fetch API');
+            const response = await fetch(hitUrl, {
+                method: 'GET',
+                cache: 'no-store',
+                headers: {
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache',
+                    'Expires': '0'
+                }
+            });
+            
+            console.log('📥 收到回應:', response.status, response.statusText);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: 無法連接計數 API`);
             }
-        });
-        
-        console.log('📥 收到回應:', response.status, response.statusText);
-        
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: 無法連接計數 API`);
+            
+            data = await response.json();
         }
         
-        const data = await response.json();
         console.log('📦 解析數據:', data);
         
         if (data && typeof data.value === 'number') {
@@ -816,6 +862,7 @@ async function initPageViewCounter() {
     } catch (error) {
         console.error('❌ 初始化頁面計數器失敗:', error);
         console.error('錯誤詳情:', error.message);
+        console.error('錯誤堆疊:', error.stack);
         
         // 失敗時回退到本地統計
         try {
@@ -839,39 +886,53 @@ async function updatePageViews() {
     const viewsCountEl = document.getElementById('views-count');
     
     try {
-        // 添加時間戳避免 iOS Safari 緩存
+        // 添加時間戳和隨機數避免 Safari 緩存
         const timestamp = Date.now();
-        const getUrl = `/api/pageviews/get?_t=${timestamp}`;
-        const response = await fetch(getUrl, {
-            method: 'GET',
-            cache: 'no-store',
-            headers: {
-                'Cache-Control': 'no-cache, no-store, must-revalidate',
-                'Pragma': 'no-cache'
-            }
-        });
+        const random = Math.random().toString(36).substring(7);
+        const getUrl = `/api/pageviews/get?_t=${timestamp}&_r=${random}`;
         
-        if (response.ok) {
-            const data = await response.json();
-            if (data && typeof data.value === 'number') {
-                const currentText = viewsCountEl.textContent.replace(/,/g, '');
-                const currentValue = parseInt(currentText) || 0;
-                
-                // 只在數字變化時更新並添加動畫
-                if (data.value !== currentValue) {
-                    const formattedViews = data.value.toLocaleString('zh-HK');
-                    viewsCountEl.textContent = formattedViews;
-                    
-                    // 添加脈衝動畫
-                    viewsCountEl.style.transform = 'scale(1.2)';
-                    viewsCountEl.style.transition = 'transform 0.3s ease';
-                    
-                    setTimeout(() => {
-                        viewsCountEl.style.transform = 'scale(1)';
-                    }, 300);
-                    
-                    console.log(`訪問量更新: ${currentValue} → ${data.value}`);
+        let data;
+        const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
+        
+        if (isSafari) {
+            // Safari 使用 XHR
+            data = await fetchPageViewsXHR(getUrl);
+        } else {
+            // 其他瀏覽器使用 Fetch
+            const response = await fetch(getUrl, {
+                method: 'GET',
+                cache: 'no-store',
+                headers: {
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache'
                 }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            
+            data = await response.json();
+        }
+        
+        if (data && typeof data.value === 'number') {
+            const currentText = viewsCountEl.textContent.replace(/[^0-9]/g, '');
+            const currentValue = parseInt(currentText) || 0;
+            
+            // 只在數字變化時更新並添加動畫
+            if (data.value !== currentValue) {
+                const formattedViews = data.value.toLocaleString('zh-HK');
+                viewsCountEl.textContent = formattedViews;
+                
+                // 添加脈衝動畫
+                viewsCountEl.style.transform = 'scale(1.2)';
+                viewsCountEl.style.transition = 'transform 0.3s ease';
+                
+                setTimeout(() => {
+                    viewsCountEl.style.transform = 'scale(1)';
+                }, 300);
+                
+                console.log(`訪問量更新: ${currentValue} → ${data.value}`);
             }
         }
     } catch (error) {

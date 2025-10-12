@@ -257,6 +257,10 @@ document.addEventListener('DOMContentLoaded', () => {
     initializeApp();
     // 啟動實時時鐘
     startRealtimeClock();
+    // 延遲啟動頁面計數器，不阻塞主流程
+    setTimeout(() => {
+        initPageViewCounter();
+    }, 100);
 });
 
 async function initializeApp() {
@@ -826,7 +830,4 @@ function startRealtimeViewsUpdate() {
         updatePageViews();
     }, 10000);
 }
-
-// 啟動頁面計數器
-initPageViewCounter();
 

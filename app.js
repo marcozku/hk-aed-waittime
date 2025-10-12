@@ -415,6 +415,8 @@ async function fetchAEDData() {
                 ...hospital,
                 ...hospitalInfo,
                 hospCode: hospCode || 'unknown',
+                // 使用 t45p95 作為最長等候時間（次緊急/非緊急類別）
+                topWait: hospital.t45p95 || '未有資料',
                 distance: calculateDistance(
                     userLocation.lat,
                     userLocation.lng,
@@ -539,10 +541,24 @@ function parseWaitingTime(waitStr) {
         return 999999; // 未知時間排在最後
     }
     
-    // 匹配 "超過X小時" 或 "X小時以上"
-    const match = waitStr.match(/(\d+)/);
-    if (match) {
-        return parseInt(match[1]) * 60;
+    // 匹配 "X.X 小時" 或 "X 小時"（新格式）
+    const hourMatch = waitStr.match(/([\d.]+)\s*小時/);
+    if (hourMatch) {
+        return parseFloat(hourMatch[1]) * 60;
+    }
+    
+    // 匹配 "X 分鐘" 或 "X分鐘"
+    const minMatch = waitStr.match(/([\d.]+)\s*分鐘/);
+    if (minMatch) {
+        return parseFloat(minMatch[1]);
+    }
+    
+    // 匹配 "少於 X 分鐘"
+    if (waitStr.includes('少於')) {
+        const match = waitStr.match(/([\d.]+)/);
+        if (match) {
+            return parseFloat(match[1]);
+        }
     }
     
     return 999999;
@@ -565,6 +581,11 @@ function createHospitalCard(hospital) {
     const waitLevel = getWaitingTimeLevel(hospital.topWait);
     const mapUrl = `https://www.google.com/maps/search/?api=1&query=${hospital.lat},${hospital.lng}`;
     
+    // 建立詳細等候時間信息
+    const detailTimes = [];
+    if (hospital.t3p50) detailTimes.push(`🟡 緊急: ${hospital.t3p50}`);
+    if (hospital.t45p50) detailTimes.push(`🔵 次緊急: ${hospital.t45p50}`);
+    
     return `
         <div class="hospital-card">
             <div class="hospital-header">
@@ -575,9 +596,16 @@ function createHospitalCard(hospital) {
             </div>
             
             <div class="waiting-time-display wait-level-${waitLevel}">
-                <div class="waiting-label">最長等候時間</div>
+                <div class="waiting-label">最長等候時間（次緊急/非緊急）</div>
                 <div class="waiting-time">${hospital.topWait}</div>
             </div>
+            
+            ${detailTimes.length > 0 ? `
+                <div class="hospital-info" style="margin-top: 10px; font-size: 0.9em;">
+                    <div><strong>中位數等候時間：</strong></div>
+                    ${detailTimes.map(t => `<div>${t}</div>`).join('')}
+                </div>
+            ` : ''}
             
             <div class="hospital-distance">
                 📍 距離: ${hospital.distance.toFixed(1)} 公里

@@ -91,13 +91,18 @@ const server = http.createServer((req, res) => {
     }
 
     // 處理根路徑
-    let filePath = '.' + req.url;
+    // 移除查詢字符串（例如 ?v=3.0）
+    const urlWithoutQuery = req.url.split('?')[0];
+    let filePath = '.' + urlWithoutQuery;
+    
     if (filePath === './') {
         filePath = './index.html';
     }
 
     const extname = String(path.extname(filePath)).toLowerCase();
     const contentType = mimeTypes[extname] || 'application/octet-stream';
+    
+    console.log(`📂 請求文件: ${req.url} -> ${filePath}`);
 
     fs.readFile(filePath, (error, content) => {
         if (error) {

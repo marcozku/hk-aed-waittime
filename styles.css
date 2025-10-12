@@ -369,6 +369,26 @@ footer {
     animation: blink 2s infinite;
 }
 
+.test-api-btn {
+    background: #4CAF50;
+    border: none;
+    border-radius: 5px;
+    padding: 5px 10px;
+    margin-left: 10px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.3s;
+}
+
+.test-api-btn:hover {
+    background: #45a049;
+    transform: scale(1.1);
+}
+
+.test-api-btn:active {
+    transform: scale(0.95);
+}
+
 @keyframes blink {
     0%, 50%, 100% { opacity: 1; }
     25%, 75% { opacity: 0.3; }

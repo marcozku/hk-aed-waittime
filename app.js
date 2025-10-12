@@ -949,3 +949,93 @@ function startRealtimeViewsUpdate() {
     }, 10000);
 }
 
+// 測試 API 連接（診斷工具）
+async function testAPIConnection() {
+    console.log('🔧 開始 API 診斷測試...');
+    
+    const results = {
+        browser: navigator.userAgent,
+        isSafari: /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent),
+        timestamp: new Date().toISOString(),
+        tests: []
+    };
+    
+    // 測試 1：直接 XHR 請求
+    try {
+        console.log('測試 1: XMLHttpRequest...');
+        const timestamp = Date.now();
+        const url = `/api/pageviews/get?_t=${timestamp}`;
+        const data = await fetchPageViewsXHR(url);
+        results.tests.push({
+            name: 'XHR Request',
+            success: true,
+            data: data,
+            url: url
+        });
+        console.log('✅ XHR 測試成功:', data);
+    } catch (error) {
+        results.tests.push({
+            name: 'XHR Request',
+            success: false,
+            error: error.message
+        });
+        console.error('❌ XHR 測試失敗:', error);
+    }
+    
+    // 測試 2：Fetch API 請求
+    try {
+        console.log('測試 2: Fetch API...');
+        const timestamp = Date.now();
+        const url = `/api/pageviews/get?_t=${timestamp}`;
+        const response = await fetch(url, { cache: 'no-store' });
+        const data = await response.json();
+        results.tests.push({
+            name: 'Fetch API',
+            success: true,
+            data: data,
+            url: url,
+            status: response.status
+        });
+        console.log('✅ Fetch 測試成功:', data);
+    } catch (error) {
+        results.tests.push({
+            name: 'Fetch API',
+            success: false,
+            error: error.message
+        });
+        console.error('❌ Fetch 測試失敗:', error);
+    }
+    
+    // 輸出完整診斷結果
+    console.log('🔍 診斷結果:', results);
+    
+    // 顯示結果給用戶
+    const successCount = results.tests.filter(t => t.success).length;
+    const message = `診斷完成\n成功: ${successCount}/${results.tests.length}\n\n詳細信息請查看 Console`;
+    alert(message);
+    
+    // 如果測試成功，更新顯示
+    const successTest = results.tests.find(t => t.success && t.data && t.data.value);
+    if (successTest) {
+        const viewsCountEl = document.getElementById('views-count');
+        if (viewsCountEl) {
+            viewsCountEl.textContent = successTest.data.value.toLocaleString('zh-HK');
+            console.log('✅ 已更新顯示:', successTest.data.value);
+        }
+    }
+    
+    return results;
+}
+
+// 綁定測試按鈕
+document.addEventListener('DOMContentLoaded', () => {
+    const testBtn = document.getElementById('test-api-btn');
+    if (testBtn) {
+        testBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            testAPIConnection();
+        });
+        console.log('🔧 診斷工具已就緒，點擊 🔧 按鈕進行測試');
+    }
+});
+

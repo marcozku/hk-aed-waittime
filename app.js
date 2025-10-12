@@ -254,13 +254,56 @@ async function fetchWithTimeout(url, timeout = 10000) {
 
 // 初始化
 document.addEventListener('DOMContentLoaded', () => {
-    initializeApp();
+    console.log('📱 頁面開始初始化...');
+    
+    // 安全機制：15秒後強制顯示頁面（防止卡住）
+    const safetyTimeout = setTimeout(() => {
+        console.warn('⚠️ 初始化超時，強制顯示頁面');
+        const loadingScreen = document.getElementById('loading-screen');
+        const mainContent = document.getElementById('main-content');
+        if (loadingScreen && mainContent) {
+            loadingScreen.classList.add('hidden');
+            mainContent.classList.remove('hidden');
+            
+            // 顯示超時警告
+            const container = document.getElementById('hospitals-container');
+            if (container && !container.innerHTML) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #666;">
+                        <h3>⚠️ 系統載入時間過長</h3>
+                        <p>請檢查網絡連接後重新整理頁面</p>
+                        <button onclick="location.reload()" style="margin-top: 20px; padding: 10px 20px; font-size: 16px; cursor: pointer;">
+                            🔄 重新整理
+                        </button>
+                    </div>
+                `;
+            }
+        }
+    }, 15000);
+    
+    // 主應用初始化
+    initializeApp()
+        .then(() => {
+            clearTimeout(safetyTimeout);
+            console.log('✅ 主應用初始化成功');
+        })
+        .catch(error => {
+            clearTimeout(safetyTimeout);
+            console.error('❌ 主應用初始化失敗:', error);
+            // 即使失敗也要顯示頁面
+            document.getElementById('loading-screen').classList.add('hidden');
+            document.getElementById('main-content').classList.remove('hidden');
+        });
+    
     // 啟動實時時鐘
     startRealtimeClock();
+    
     // 延遲啟動頁面計數器，不阻塞主流程
     setTimeout(() => {
-        initPageViewCounter();
-    }, 100);
+        initPageViewCounter().catch(error => {
+            console.error('⚠️ 頁面計數器初始化失敗（不影響主功能）:', error);
+        });
+    }, 1000);
 });
 
 async function initializeApp() {

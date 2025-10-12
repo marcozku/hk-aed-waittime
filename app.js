@@ -425,6 +425,11 @@ async function fetchAEDData() {
         
     } catch (error) {
         console.error('獲取數據失敗:', error);
+        
+        // 即使失敗也要顯示主頁面，避免卡在加載畫面
+        document.getElementById('loading-screen').classList.add('hidden');
+        document.getElementById('main-content').classList.remove('hidden');
+        
         updateConnectionStatus('error', `連接失敗: ${error.message} | 將在5秒後重試...`);
         
         // 5秒後重試

@@ -721,3 +721,36 @@ async function fetchWeatherWarnings() {
     }
 }
 
+// 頁面訪問統計
+function initPageViewCounter() {
+    try {
+        // 獲取當前訪問次數
+        let pageViews = parseInt(localStorage.getItem('pageViews') || '0');
+        
+        // 增加訪問次數
+        pageViews++;
+        
+        // 保存到 localStorage
+        localStorage.setItem('pageViews', pageViews.toString());
+        
+        // 顯示訪問次數
+        const viewsCountEl = document.getElementById('views-count');
+        if (viewsCountEl) {
+            // 格式化數字（添加千分位符號）
+            const formattedViews = pageViews.toLocaleString('zh-HK');
+            viewsCountEl.textContent = formattedViews;
+        }
+        
+        console.log(`頁面訪問次數: ${pageViews}`);
+    } catch (error) {
+        console.error('初始化頁面計數器失敗:', error);
+        const viewsCountEl = document.getElementById('views-count');
+        if (viewsCountEl) {
+            viewsCountEl.textContent = '無法載入';
+        }
+    }
+}
+
+// 啟動頁面計數器
+initPageViewCounter();
+

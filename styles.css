@@ -326,7 +326,10 @@ footer {
     right: 0;
     background: rgba(0, 0, 0, 0.8);
     backdrop-filter: blur(10px);
-    padding: 12px 20px;
+    padding: 10px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
 
 .connection-status {
@@ -335,6 +338,25 @@ footer {
     justify-content: center;
     gap: 10px;
     color: white;
+    font-size: 14px;
+}
+
+.page-views {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 13px;
+}
+
+.views-icon {
+    font-size: 16px;
+}
+
+.views-count {
+    font-weight: bold;
+    color: #4CAF50;
     font-size: 14px;
 }
 
@@ -389,6 +411,20 @@ footer {
 
     .control-group select {
         width: 100%;
+    }
+
+    footer {
+        padding: 8px 10px;
+        gap: 5px;
+    }
+
+    .connection-status,
+    .page-views {
+        font-size: 12px;
+    }
+
+    .views-count {
+        font-size: 13px;
     }
 }
 

@@ -721,31 +721,47 @@ async function fetchWeatherWarnings() {
     }
 }
 
-// 頁面訪問統計
-function initPageViewCounter() {
+// 頁面訪問統計（全站統計）
+async function initPageViewCounter() {
+    const viewsCountEl = document.getElementById('views-count');
+    
     try {
-        // 獲取當前訪問次數
-        let pageViews = parseInt(localStorage.getItem('pageViews') || '0');
+        // 使用 CountAPI 提供全站訪問統計
+        // 格式: https://api.countapi.xyz/hit/{namespace}/{key}
+        const namespace = 'hk-aed-waittime';
+        const key = 'page-views';
+        const apiUrl = `https://api.countapi.xyz/hit/${namespace}/${key}`;
         
-        // 增加訪問次數
-        pageViews++;
+        // 發送請求並增加計數
+        const response = await fetch(apiUrl);
         
-        // 保存到 localStorage
-        localStorage.setItem('pageViews', pageViews.toString());
-        
-        // 顯示訪問次數
-        const viewsCountEl = document.getElementById('views-count');
-        if (viewsCountEl) {
-            // 格式化數字（添加千分位符號）
-            const formattedViews = pageViews.toLocaleString('zh-HK');
-            viewsCountEl.textContent = formattedViews;
+        if (!response.ok) {
+            throw new Error('無法連接計數 API');
         }
         
-        console.log(`頁面訪問次數: ${pageViews}`);
+        const data = await response.json();
+        
+        if (data && data.value) {
+            // 格式化數字（添加千分位符號）
+            const formattedViews = data.value.toLocaleString('zh-HK');
+            viewsCountEl.textContent = formattedViews;
+            console.log(`全站訪問次數: ${data.value}`);
+        } else {
+            throw new Error('無效的 API 回應');
+        }
+        
     } catch (error) {
         console.error('初始化頁面計數器失敗:', error);
-        const viewsCountEl = document.getElementById('views-count');
-        if (viewsCountEl) {
+        
+        // 失敗時回退到本地統計
+        try {
+            let localViews = parseInt(localStorage.getItem('pageViews') || '0');
+            localViews++;
+            localStorage.setItem('pageViews', localViews.toString());
+            
+            const formattedViews = localViews.toLocaleString('zh-HK');
+            viewsCountEl.textContent = `${formattedViews} (本地)`;
+        } catch (localError) {
             viewsCountEl.textContent = '無法載入';
         }
     }

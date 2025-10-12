@@ -12,7 +12,7 @@ const HOSPITALS_DATA = {
         phone: '3505 2211',
         lat: 22.3753,
         lng: 114.2026,
-        specialtiesWarning: null
+        specialtiesWarning: '✅ 大型教學醫院，提供全面專科服務（包括創傷、神經外科、心臟科）'
     },
     'AHNH': {
         name: '雅麗氏何妙齡那打素醫院',
@@ -24,7 +24,7 @@ const HOSPITALS_DATA = {
         phone: '2689 2000',
         lat: 22.4520,
         lng: 114.1748,
-        specialtiesWarning: null
+        specialtiesWarning: '⚠️ 地區醫院，嚴重創傷個案可能需轉送威爾斯親王醫院'
     },
     'NDH': {
         name: '北區醫院',
@@ -48,7 +48,7 @@ const HOSPITALS_DATA = {
         phone: '2468 5111',
         lat: 22.4128,
         lng: 113.9770,
-        specialtiesWarning: null
+        specialtiesWarning: '✅ 大型綜合醫院，提供全面專科服務（包括兒科、婦產科、創傷）'
     },
     'PYNEH': {
         name: '博愛醫院',
@@ -60,7 +60,7 @@ const HOSPITALS_DATA = {
         phone: '2486 8000',
         lat: 22.4447,
         lng: 114.0251,
-        specialtiesWarning: null
+        specialtiesWarning: '⚠️ 地區醫院，複雜創傷或神經外科個案可能需轉送屯門醫院'
     },
     'TKO': {
         name: '將軍澳醫院',
@@ -72,7 +72,7 @@ const HOSPITALS_DATA = {
         phone: '2208 0111',
         lat: 22.3147,
         lng: 114.2607,
-        specialtiesWarning: null
+        specialtiesWarning: '⚠️ 急症醫院，嚴重創傷或需專科介入個案可能轉送基督教聯合醫院'
     },
     'UCH': {
         name: '基督教聯合醫院',
@@ -84,7 +84,7 @@ const HOSPITALS_DATA = {
         phone: '3513 5000',
         lat: 22.3089,
         lng: 114.2244,
-        specialtiesWarning: null
+        specialtiesWarning: '✅ 大型急症全科醫院，提供全面專科服務（包括創傷、神經外科、心臟科）'
     },
     'QEH': {
         name: '伊利沙伯醫院',
@@ -96,7 +96,7 @@ const HOSPITALS_DATA = {
         phone: '3506 8888',
         lat: 22.3089,
         lng: 114.1747,
-        specialtiesWarning: null
+        specialtiesWarning: '✅ 大型教學醫院，提供全面專科服務，設有創傷中心'
     },
     'KWH': {
         name: '廣華醫院',
@@ -108,7 +108,7 @@ const HOSPITALS_DATA = {
         phone: '3517 5000',
         lat: 22.3126,
         lng: 114.1722,
-        specialtiesWarning: null
+        specialtiesWarning: '✅ 提供全面急症服務，婦產科及兒科服務完善'
     },
     'CMC': {
         name: '明愛醫院',
@@ -120,7 +120,7 @@ const HOSPITALS_DATA = {
         phone: '3408 5678',
         lat: 22.3366,
         lng: 114.1616,
-        specialtiesWarning: null
+        specialtiesWarning: '✅ 大型急症醫院，提供全面專科服務（包括創傷、腫瘤科）'
     },
     'YCH': {
         name: '仁濟醫院',
@@ -132,7 +132,7 @@ const HOSPITALS_DATA = {
         phone: '2417 8383',
         lat: 22.3695,
         lng: 114.1175,
-        specialtiesWarning: null
+        specialtiesWarning: '⚠️ 急症醫院，複雜個案可能需轉送明愛醫院或瑪嘉烈醫院'
     },
     'PMH': {
         name: '瑪嘉烈醫院',
@@ -144,7 +144,7 @@ const HOSPITALS_DATA = {
         phone: '2990 1111',
         lat: 22.3386,
         lng: 114.1457,
-        specialtiesWarning: null
+        specialtiesWarning: '✅ 大型醫院，提供全面專科服務，設傳染病中心'
     },
     'QMH': {
         name: '瑪麗醫院',
@@ -156,7 +156,7 @@ const HOSPITALS_DATA = {
         phone: '2255 3838',
         lat: 22.2697,
         lng: 114.1316,
-        specialtiesWarning: null
+        specialtiesWarning: '✅ 港島最大教學醫院，提供全面專科及高度專科服務，設創傷中心'
     },
     'RH': {
         name: '律敦治醫院',
@@ -180,7 +180,7 @@ const HOSPITALS_DATA = {
         phone: '2595 6111',
         lat: 22.2634,
         lng: 114.2370,
-        specialtiesWarning: null
+        specialtiesWarning: '✅ 大型急症全科醫院，提供全面專科服務（包括創傷、神經外科、心臟科）'
     },
     'NLTH': {
         name: '北大嶼山醫院',
@@ -192,7 +192,7 @@ const HOSPITALS_DATA = {
         phone: '3467 7000',
         lat: 22.2889,
         lng: 113.9431,
-        specialtiesWarning: null
+        specialtiesWarning: '⚠️ 中型醫院，嚴重創傷或複雜個案可能需轉送其他醫院'
     },
     'TSWH': {
         name: '天水圍醫院',

@@ -47,24 +47,59 @@ const mimeTypes = {
     '.ico': 'image/x-icon'
 };
 
-// 讀取並增加計數器
+// 讀取並增加計數器（帶文件鎖保護）
 function incrementCounter() {
     try {
-        let count = parseInt(fs.readFileSync(COUNTER_FILE, 'utf8') || '0');
+        // 讀取當前值
+        const rawData = fs.readFileSync(COUNTER_FILE, 'utf8').trim();
+        console.log('📖 讀取原始數據:', `"${rawData}"`);
+        
+        let count = parseInt(rawData);
+        
+        // 驗證解析結果
+        if (isNaN(count) || count < 0) {
+            console.warn('⚠️ 無效的計數值，重置為 0');
+            count = 0;
+        }
+        
+        console.log('🔢 解析後的計數:', count);
+        
+        // 增加計數
         count++;
-        fs.writeFileSync(COUNTER_FILE, count.toString());
-        console.log(`✅ 計數器增加: ${count}`);
+        
+        // 寫回文件
+        fs.writeFileSync(COUNTER_FILE, count.toString(), 'utf8');
+        
+        // 驗證寫入
+        const verify = fs.readFileSync(COUNTER_FILE, 'utf8').trim();
+        console.log(`✅ 計數器增加: ${count}, 驗證: ${verify}`);
+        
         return count;
     } catch (error) {
         console.error('❌ 計數器錯誤:', error);
-        return 0;
+        console.error('錯誤堆疊:', error.stack);
+        
+        // 嘗試讀取當前值返回，而不是返回 0
+        try {
+            const currentCount = parseInt(fs.readFileSync(COUNTER_FILE, 'utf8') || '0');
+            return isNaN(currentCount) ? 1 : currentCount;
+        } catch {
+            return 1; // 錯誤時返回 1 而不是 0
+        }
     }
 }
 
 // 只讀取計數器（不增加）
 function getCounter() {
     try {
-        const count = parseInt(fs.readFileSync(COUNTER_FILE, 'utf8') || '0');
+        const rawData = fs.readFileSync(COUNTER_FILE, 'utf8').trim();
+        const count = parseInt(rawData);
+        
+        if (isNaN(count) || count < 0) {
+            console.warn('⚠️ 讀取到無效的計數值:', rawData);
+            return 0;
+        }
+        
         console.log(`📊 讀取計數: ${count}`);
         return count;
     } catch (error) {

@@ -108,7 +108,12 @@ const server = http.createServer((req, res) => {
                         res.writeHead(500);
                         res.end('Error loading index.html');
                     } else {
-                        res.writeHead(200, { 'Content-Type': 'text/html' });
+                        res.writeHead(200, { 
+                            'Content-Type': 'text/html',
+                            'Cache-Control': 'no-cache, no-store, must-revalidate',
+                            'Pragma': 'no-cache',
+                            'Expires': '0'
+                        });
                         res.end(content, 'utf-8');
                     }
                 });
@@ -117,7 +122,18 @@ const server = http.createServer((req, res) => {
                 res.end('Server Error: ' + error.code);
             }
         } else {
-            res.writeHead(200, { 'Content-Type': contentType });
+            // 為 JavaScript 和 HTML 文件設置不緩存
+            const headers = { 'Content-Type': contentType };
+            if (extname === '.js' || extname === '.html') {
+                headers['Cache-Control'] = 'no-cache, no-store, must-revalidate';
+                headers['Pragma'] = 'no-cache';
+                headers['Expires'] = '0';
+            } else {
+                // 其他靜態資源可以緩存 1 小時
+                headers['Cache-Control'] = 'public, max-age=3600';
+            }
+            
+            res.writeHead(200, headers);
             res.end(content, 'utf-8');
         }
     });

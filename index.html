@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>香港急症室等候時間</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- 加載畫面 -->
+    <div id="loading-screen" class="loading-screen">
+        <div class="loader"></div>
+        <p>正在連接急症室數據系統...</p>
+        <p id="loading-status" class="loading-status"></p>
+    </div>
+
+    <!-- 主頁面 -->
+    <div id="main-content" class="main-content hidden">
+        <header>
+            <h1>🏥 香港急症室等候時間</h1>
+            <div class="current-time" id="current-time"></div>
+            <div class="weather-info" id="weather-info">
+                <span id="weather-temp"></span>
+                <span id="weather-desc"></span>
+            </div>
+            <div class="weather-warnings" id="weather-warnings"></div>
+            <div class="last-update">
+                最後更新：<span id="last-update-time"></span>
+            </div>
+        </header>
+
+        <!-- 控制面板 -->
+        <div class="control-panel">
+            <div class="control-group">
+                <label>排序方式：</label>
+                <select id="sort-by">
+                    <option value="distance">最近醫院</option>
+                    <option value="waiting-time">等候時間</option>
+                    <option value="name">醫院名稱</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label>醫院聯網：</label>
+                <select id="filter-cluster">
+                    <option value="all">全部</option>
+                    <option value="HKE">港島東聯網</option>
+                    <option value="HKW">港島西聯網</option>
+                    <option value="KCC">九龍中聯網</option>
+                    <option value="KEC">九龍東聯網</option>
+                    <option value="KWC">九龍西聯網</option>
+                    <option value="NTE">新界東聯網</option>
+                    <option value="NTW">新界西聯網</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label>地區：</label>
+                <select id="filter-district">
+                    <option value="all">全部地區</option>
+                    <option value="香港島">香港島</option>
+                    <option value="九龍">九龍</option>
+                    <option value="新界">新界</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- 醫院列表 -->
+        <div class="hospitals-container" id="hospitals-container">
+            <!-- 將由JavaScript動態生成 -->
+        </div>
+
+        <!-- 連接狀態 -->
+        <footer>
+            <div class="connection-status" id="connection-status">
+                <span class="status-indicator"></span>
+                <span class="status-text"></span>
+            </div>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
+

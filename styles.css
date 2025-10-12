@@ -1,0 +1,394 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Microsoft JhengHei', 'PingFang TC', 'Helvetica Neue', Arial, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* 加載畫面 */
+.loading-screen {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    color: white;
+    text-align: center;
+}
+
+.loader {
+    border: 6px solid rgba(255, 255, 255, 0.3);
+    border-top: 6px solid white;
+    border-radius: 50%;
+    width: 60px;
+    height: 60px;
+    animation: spin 1s linear infinite;
+    margin-bottom: 20px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.loading-status {
+    margin-top: 10px;
+    font-size: 14px;
+    opacity: 0.8;
+}
+
+/* 主內容 */
+.main-content {
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+header {
+    background: white;
+    border-radius: 15px;
+    padding: 25px;
+    margin-bottom: 20px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    text-align: center;
+}
+
+h1 {
+    color: #333;
+    font-size: 32px;
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+.current-time {
+    font-size: 24px;
+    font-weight: bold;
+    color: #667eea;
+    margin-bottom: 15px;
+    text-align: center;
+    padding: 10px;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    border-radius: 10px;
+    letter-spacing: 1px;
+}
+
+.weather-info {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 10px;
+    font-size: 16px;
+    color: #666;
+}
+
+.weather-warnings {
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+.warning-badge {
+    display: inline-block;
+    background: #ff4444;
+    color: white;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 14px;
+    margin-right: 8px;
+    margin-top: 5px;
+    font-weight: bold;
+}
+
+.last-update {
+    color: #666;
+    font-size: 14px;
+    text-align: center;
+}
+
+/* 控制面板 */
+.control-panel {
+    background: white;
+    border-radius: 15px;
+    padding: 20px;
+    margin-bottom: 20px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.control-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.control-group label {
+    font-weight: bold;
+    color: #333;
+}
+
+.control-group select {
+    padding: 8px 12px;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    font-size: 14px;
+    background: white;
+    cursor: pointer;
+    transition: border-color 0.3s;
+}
+
+.control-group select:hover {
+    border-color: #667eea;
+}
+
+/* 醫院容器 */
+.hospitals-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 20px;
+    margin-bottom: 80px;
+}
+
+/* 醫院卡片 */
+.hospital-card {
+    background: white;
+    border-radius: 15px;
+    padding: 20px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.hospital-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+}
+
+.hospital-header {
+    margin-bottom: 15px;
+}
+
+.hospital-name {
+    font-size: 20px;
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 5px;
+}
+
+.hospital-name-en {
+    font-size: 14px;
+    color: #999;
+    margin-bottom: 8px;
+}
+
+.hospital-cluster {
+    display: inline-block;
+    background: #667eea;
+    color: white;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    margin-right: 5px;
+}
+
+.hospital-district {
+    display: inline-block;
+    background: #764ba2;
+    color: white;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+}
+
+.waiting-time-display {
+    text-align: center;
+    padding: 20px;
+    border-radius: 10px;
+    margin: 15px 0;
+}
+
+.waiting-label {
+    font-size: 14px;
+    color: rgba(0, 0, 0, 0.7);
+    margin-bottom: 5px;
+}
+
+.waiting-time {
+    font-size: 36px;
+    font-weight: bold;
+    color: white;
+}
+
+/* 等候時間顏色漸變 - 世界級標準 (參考NHS 4小時目標和國際急症室最佳實踐) */
+.wait-level-0 { 
+    /* < 2小時：綠色 - 優秀表現 */
+    background: linear-gradient(135deg, #00b894 0%, #00cec9 100%);
+}
+.wait-level-1 { 
+    /* 2-4小時：琥珀色 - 符合NHS 4小時標準 */
+    background: linear-gradient(135deg, #fdcb6e 0%, #f39c12 100%);
+}
+.wait-level-2 { 
+    /* 4-6小時：橙紅色 - 需要關注 */
+    background: linear-gradient(135deg, #ff7675 0%, #e17055 100%);
+}
+.wait-level-3 { 
+    /* > 6小時：深紅色 - 嚴重超標 */
+    background: linear-gradient(135deg, #d63031 0%, #c0392b 100%);
+}
+.wait-level-unknown { 
+    /* 未知：灰色 */
+    background: linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%);
+}
+
+.hospital-distance {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 10px;
+}
+
+.hospital-info {
+    font-size: 14px;
+    color: #666;
+    line-height: 1.6;
+    margin-bottom: 10px;
+}
+
+.hospital-info div {
+    margin-bottom: 5px;
+}
+
+.hospital-info strong {
+    color: #333;
+}
+
+.specialties-info {
+    background: #fff3cd;
+    border-left: 4px solid #ffc107;
+    padding: 10px;
+    margin: 10px 0;
+    font-size: 13px;
+    border-radius: 5px;
+}
+
+.specialties-info strong {
+    color: #856404;
+}
+
+.hospital-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.btn {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    text-decoration: none;
+    text-align: center;
+    display: block;
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
+}
+
+.btn-map {
+    background: #4CAF50;
+    color: white;
+}
+
+.btn-call {
+    background: #2196F3;
+    color: white;
+}
+
+/* 頁腳 */
+footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(10px);
+    padding: 12px 20px;
+}
+
+.connection-status {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    color: white;
+    font-size: 14px;
+}
+
+.status-indicator {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+}
+
+.status-indicator.connected {
+    background: #4CAF50;
+}
+
+.status-indicator.connecting {
+    background: #FFC107;
+}
+
+.status-indicator.error {
+    background: #F44336;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* 響應式設計 */
+@media (max-width: 768px) {
+    body {
+        padding: 10px;
+    }
+
+    h1 {
+        font-size: 24px;
+    }
+
+    .hospitals-container {
+        grid-template-columns: 1fr;
+    }
+
+    .control-panel {
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .control-group {
+        width: 100%;
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .control-group select {
+        width: 100%;
+    }
+}
+

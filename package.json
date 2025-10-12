@@ -1,0 +1,20 @@
+{
+  "name": "hk-aed-waittime",
+  "version": "1.0.0",
+  "description": "香港急症室等候時間顯示系統 - Real-time Hong Kong A&E waiting time display system",
+  "main": "index.html",
+  "scripts": {
+    "start": "python -m http.server 8080",
+    "dev": "python -m http.server 8000"
+  },
+  "keywords": [
+    "hong-kong",
+    "hospital",
+    "emergency",
+    "waiting-time",
+    "healthcare"
+  ],
+  "author": "",
+  "license": "MIT"
+}
+

@@ -664,20 +664,30 @@ function scheduleRefresh() {
 // 獲取天氣數據
 async function fetchWeatherData() {
     try {
-        // 使用香港天文台API
+        // 獲取實時溫度
         const weatherUrl = 'https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=rhrread&lang=tc';
         const response = await fetchWithTimeout(weatherUrl, 8000);
         
         if (!response.ok) throw new Error('無法獲取天氣數據');
         
         const data = await response.json();
-        
-        // 顯示溫度和天氣描述
         const temp = data.temperature?.data?.[0]?.value || '未知';
-        const humidity = data.humidity?.data?.[0]?.value || '未知';
+        
+        // 獲取降雨機率（從預報數據）
+        const forecastUrl = 'https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=fnd&lang=tc';
+        const forecastResponse = await fetchWithTimeout(forecastUrl, 8000);
+        
+        let rainChance = '未知';
+        if (forecastResponse.ok) {
+            const forecastData = await forecastResponse.json();
+            const todayForecast = forecastData.weatherForecast?.[0];
+            if (todayForecast?.PSR) {
+                rainChance = todayForecast.PSR;
+            }
+        }
         
         document.getElementById('weather-temp').textContent = `🌡️ ${temp}°C`;
-        document.getElementById('weather-desc').textContent = `💧 濕度 ${humidity}%`;
+        document.getElementById('weather-desc').textContent = `🌧️ 降雨機率: ${rainChance}`;
         
         // 獲取天氣警告
         await fetchWeatherWarnings();

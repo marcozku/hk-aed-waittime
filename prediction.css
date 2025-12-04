@@ -50,6 +50,7 @@
     background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
     min-height: 100vh;
     padding-top: 70px;
+    overflow-x: hidden;
 }
 
 /* 主容器 */
@@ -505,7 +506,7 @@
     margin: 5px 0;
 }
 
-/* 響應式設計 - 保持單行顯示 */
+/* 響應式設計 */
 @media (max-width: 1200px) {
     .forecast-cards {
         grid-template-columns: repeat(7, 1fr);
@@ -548,89 +549,73 @@
     }
     
     .prediction-header h1 {
-        font-size: 1.6rem;
+        font-size: 1.4rem;
+        white-space: normal;
     }
     
     .prediction-header .subtitle {
-        font-size: 0.85rem;
+        font-size: 0.8rem;
+        white-space: normal;
+    }
+    
+    .current-datetime {
+        white-space: normal;
+        font-size: 0.9rem;
     }
 }
 
 @media (max-width: 600px) {
+    .prediction-page {
+        padding-top: 60px;
+    }
+    
+    .prediction-container {
+        padding: 10px;
+    }
+    
+    .prediction-header {
+        padding: 15px;
+        margin-bottom: 15px;
+    }
+    
     .prediction-header h1 {
-        font-size: 1.2rem;
+        font-size: 1.1rem;
+        white-space: normal;
+        line-height: 1.3;
     }
     
     .prediction-header .subtitle {
-        font-size: 0.75rem;
+        font-size: 0.7rem;
+        white-space: normal;
     }
     
     .current-datetime {
-        font-size: 0.85rem;
-        padding: 8px 12px;
+        font-size: 0.75rem;
+        padding: 6px 10px;
+        white-space: normal;
     }
     
     .big-number {
-        font-size: 3rem;
+        font-size: 2.5rem;
     }
     
     .unit {
-        font-size: 1.5rem;
+        font-size: 1.2rem;
     }
     
     .today-prediction {
         grid-template-columns: 1fr;
+        gap: 15px;
     }
     
-    .forecast-cards {
-        grid-template-columns: repeat(7, 1fr);
-        gap: 5px;
+    .prediction-card {
+        padding: 15px;
     }
     
-    .forecast-day-card {
-        padding: 8px 3px;
-    }
-    
-    .forecast-date {
-        font-size: 0.65rem;
-    }
-    
-    .forecast-day {
-        font-size: 0.7rem;
-    }
-    
-    .forecast-value {
-        font-size: 1.1rem;
-    }
-    
-    .forecast-ci {
-        font-size: 0.5rem;
-    }
-    
-    .forecast-badge {
-        font-size: 0.5rem;
-        padding: 2px 4px;
-    }
-    
-    .nav-bar {
-        gap: 10px;
-    }
-    
-    .nav-link {
-        font-size: 12px;
-        padding: 8px 12px;
-    }
-    
-    .nav-link span:not(.nav-icon) {
-        display: none;
-    }
-    
-    .factors-table {
-        overflow-x: auto;
-    }
-    
-    .factors-table table {
-        min-width: 500px;
+    .card-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
     }
     
     .card-header h2 {
@@ -638,30 +623,237 @@
     }
     
     .date-badge {
-        font-size: 0.75rem;
-        padding: 4px 10px;
+        font-size: 0.7rem;
+        padding: 4px 8px;
+    }
+    
+    .prediction-value {
+        padding: 15px 0;
+    }
+    
+    .confidence-interval {
+        padding: 10px;
+    }
+    
+    .ci-label {
+        font-size: 0.8rem;
+    }
+    
+    .ci-value {
+        font-size: 0.85rem;
+    }
+    
+    .factors-breakdown {
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+    }
+    
+    .factor-item {
+        padding: 8px;
+    }
+    
+    .factor-name {
+        font-size: 0.65rem;
+    }
+    
+    .factor-value {
+        font-size: 0.85rem;
+    }
+    
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+    
+    .stat-item {
+        padding: 12px;
     }
     
     .stat-value {
-        font-size: 1.8rem;
+        font-size: 1.6rem;
     }
     
     .stat-label {
+        font-size: 0.7rem;
+    }
+    
+    /* 7天預測 - 手機版改為滾動 */
+    .forecast-section {
+        margin-bottom: 20px;
+    }
+    
+    .forecast-section h2 {
+        font-size: 1.1rem;
+        margin-bottom: 12px;
+    }
+    
+    .forecast-cards {
+        display: flex;
+        overflow-x: auto;
+        gap: 8px;
+        padding-bottom: 10px;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .forecast-day-card {
+        flex: 0 0 auto;
+        width: 70px;
+        padding: 10px 8px;
+    }
+    
+    .forecast-date {
+        font-size: 0.65rem;
+    }
+    
+    .forecast-day {
         font-size: 0.75rem;
     }
     
-    .chart-card h3 {
-        font-size: 0.95rem;
-        white-space: nowrap;
-    }
-    
-    .algorithm-section h2 {
+    .forecast-value {
         font-size: 1.2rem;
     }
     
+    .forecast-ci {
+        font-size: 0.55rem;
+    }
+    
+    .forecast-badge {
+        font-size: 0.5rem;
+        padding: 2px 4px;
+        display: block;
+        margin-top: 4px;
+    }
+    
+    /* 圖表 */
+    .charts-section {
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+    
+    .chart-card {
+        padding: 15px;
+    }
+    
+    .chart-card h3 {
+        font-size: 0.9rem;
+        white-space: normal;
+        margin-bottom: 12px;
+    }
+    
+    .chart-container {
+        height: 220px;
+    }
+    
+    .chart-container.large {
+        height: 280px;
+    }
+    
+    /* 算法說明 */
+    .algorithm-section {
+        padding: 15px;
+        margin-bottom: 20px;
+    }
+    
+    .algorithm-section h2 {
+        font-size: 1.1rem;
+        margin-bottom: 15px;
+    }
+    
+    .algorithm-formula {
+        padding: 12px;
+    }
+    
+    .algorithm-formula h4 {
+        font-size: 0.85rem;
+    }
+    
     .algorithm-formula code {
+        font-size: 0.7rem;
+        word-break: break-word;
+        white-space: normal;
+        display: block;
+        line-height: 1.4;
+    }
+    
+    .factors-table h4 {
+        font-size: 0.9rem;
+    }
+    
+    .factors-table {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .factors-table table {
+        min-width: 400px;
         font-size: 0.8rem;
-        word-break: break-all;
+    }
+    
+    .factors-table th,
+    .factors-table td {
+        padding: 8px 10px;
+    }
+    
+    .considerations {
+        padding: 12px;
+    }
+    
+    .considerations h4 {
+        font-size: 0.9rem;
+    }
+    
+    .considerations ul {
+        font-size: 0.8rem;
+        padding-left: 15px;
+    }
+    
+    .considerations li {
+        white-space: normal;
+        margin-bottom: 6px;
+    }
+    
+    /* 導航 */
+    .nav-bar {
+        gap: 8px;
+        padding: 8px 10px;
+    }
+    
+    .nav-link {
+        font-size: 11px;
+        padding: 6px 10px;
+    }
+    
+    .nav-icon {
+        font-size: 14px;
+    }
+    
+    .nav-link span:not(.nav-icon) {
+        display: none;
+    }
+    
+    /* 頁腳 */
+    .prediction-footer {
+        padding: 15px;
+        font-size: 0.7rem;
+    }
+}
+
+/* 超小螢幕 */
+@media (max-width: 360px) {
+    .prediction-header h1 {
+        font-size: 1rem;
+    }
+    
+    .big-number {
+        font-size: 2rem;
+    }
+    
+    .forecast-day-card {
+        width: 60px;
+    }
+    
+    .stat-value {
+        font-size: 1.4rem;
     }
 }
 

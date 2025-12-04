@@ -177,8 +177,10 @@ const server = http.createServer((req, res) => {
     console.log(`📂 請求文件: ${req.url} -> ${filePath}`);
 
     // v2.0: Allow iframe embedding from roster app
+    // v8.1: Allow geolocation in iframe
     const frameHeaders = {
-        'Content-Security-Policy': "frame-ancestors 'self' https://ndhaedroster.up.railway.app https://*.up.railway.app http://localhost:* http://127.0.0.1:*"
+        'Content-Security-Policy': "frame-ancestors 'self' https://ndhaedroster.up.railway.app https://*.up.railway.app http://localhost:* http://127.0.0.1:*",
+        'Permissions-Policy': 'geolocation=(self "https://ndhaedroster.up.railway.app" "https://*.up.railway.app" "http://localhost:*" "http://127.0.0.1:*")'
     };
 
     fs.readFile(filePath, (error, content) => {

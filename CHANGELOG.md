@@ -1,5 +1,54 @@
 # 香港急症室等候時間顯示系統 - 更新日誌
 
+## v8.1.1 (2025-12-05 01:29 HKT)
+
+### 🔒 iframe 地理位置權限修復
+
+**問題**：嵌入到 iframe 時，瀏覽器 Permissions Policy 阻止地理位置訪問
+```
+Permissions policy violation: Geolocation access has been blocked
+```
+
+**修復內容**：
+- ✅ **添加 Permissions-Policy header** - 允許 iframe 中使用地理位置
+- ✅ **完整嵌入指南文檔** - `EMBEDDING-GUIDE.md` 提供詳細使用說明
+- ✅ **白名單配置** - 允許以下來源嵌入時使用地理位置：
+  - `https://ndhaedroster.up.railway.app`
+  - `https://*.up.railway.app`
+  - `http://localhost:*` (開發環境)
+  - `http://127.0.0.1:*` (開發環境)
+
+### 📝 技術細節
+
+**Server.js 配置**：
+```javascript
+const frameHeaders = {
+    'Content-Security-Policy': "frame-ancestors 'self' https://ndhaedroster.up.railway.app ...",
+    'Permissions-Policy': 'geolocation=(self "https://ndhaedroster.up.railway.app" ...)'
+};
+```
+
+**正確的嵌入方式**：
+```html
+<!-- 必須添加 allow="geolocation" 屬性！ -->
+<iframe 
+    src="https://hkaedwaittime.up.railway.app/" 
+    allow="geolocation"
+    width="100%" 
+    height="800">
+</iframe>
+```
+
+### 🎯 使用說明
+
+查看 `EMBEDDING-GUIDE.md` 獲取：
+- ✅ 完整嵌入範例（HTML / React / Next.js）
+- ✅ URL 參數說明
+- ✅ 常見問題排查
+- ✅ 響應式設計範例
+
+---
+
 ## v8.1 (2025-12-05 01:24 HKT)
 
 ### 🔧 地理位置緩存過期檢查修復

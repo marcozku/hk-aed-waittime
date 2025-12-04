@@ -494,8 +494,10 @@
     white-space: nowrap;
 }
 
-/* 頁腳 */
+/* 頁腳 - 覆蓋 styles.css 的 footer 固定定位 */
+.prediction-page footer,
 .prediction-footer {
+    position: static !important;
     text-align: center;
     padding: 20px;
     color: rgba(255, 255, 255, 0.4);

@@ -606,11 +606,9 @@ class NDHAttendancePredictor {
 let forecastChart, dowChart, monthChart, historyChart;
 
 function initCharts(predictor) {
-    // 獲取今天日期 (香港時間)
-    const now = new Date();
-    const hkOffset = 8 * 60; // UTC+8
-    const hkTime = new Date(now.getTime() + (hkOffset - now.getTimezoneOffset()) * 60000);
-    const today = hkTime.toISOString().split('T')[0];
+    // 獲取今天日期 (香港時間 HKT UTC+8)
+    const hk = getHKTime();
+    const today = hk.dateStr;
     
     // 未來30天預測
     const predictions = predictor.predictRange(today, 30);
@@ -853,19 +851,50 @@ function initCharts(predictor) {
 }
 
 // ============================================
+// 獲取香港時間 (HKT UTC+8)
+// ============================================
+function getHKTime() {
+    const now = new Date();
+    // 使用 Intl.DateTimeFormat 獲取準確的香港時間
+    const hkFormatter = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Hong_Kong',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+    });
+    
+    const parts = hkFormatter.formatToParts(now);
+    const getPart = (type) => parts.find(p => p.type === type)?.value || '00';
+    
+    return {
+        year: parseInt(getPart('year')),
+        month: parseInt(getPart('month')),
+        day: parseInt(getPart('day')),
+        hour: parseInt(getPart('hour')),
+        minute: parseInt(getPart('minute')),
+        second: parseInt(getPart('second')),
+        dateStr: `${getPart('year')}-${getPart('month')}-${getPart('day')}`,
+        timeStr: `${getPart('hour')}:${getPart('minute')}:${getPart('second')}`,
+        dayOfWeek: new Date(`${getPart('year')}-${getPart('month')}-${getPart('day')}T12:00:00+08:00`).getDay()
+    };
+}
+
+// ============================================
 // UI 更新
 // ============================================
 function updateUI(predictor) {
-    // 獲取今天日期 (香港時間)
-    const now = new Date();
-    const hkOffset = 8 * 60;
-    const hkTime = new Date(now.getTime() + (hkOffset - now.getTimezoneOffset()) * 60000);
-    const today = hkTime.toISOString().split('T')[0];
+    // 獲取今天日期 (香港時間 HKT UTC+8)
+    const hk = getHKTime();
+    const today = hk.dateStr;
     
     // 更新當前時間
     const datetimeEl = document.getElementById('current-datetime');
     const weekdays = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
-    datetimeEl.textContent = `🕐 ${hkTime.getFullYear()}年${hkTime.getMonth()+1}月${hkTime.getDate()}日 ${weekdays[hkTime.getDay()]} ${hkTime.toLocaleTimeString('zh-HK')} HKT`;
+    datetimeEl.textContent = `🕐 ${hk.year}年${hk.month}月${hk.day}日 ${weekdays[hk.dayOfWeek]} ${hk.timeStr} HKT`;
     
     // 今日預測
     const todayPred = predictor.predict(today);
@@ -943,15 +972,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // 初始化圖表
     initCharts(predictor);
     
-    // 每分鐘更新時間
+    // 每秒更新時間 (使用真實 HKT)
     setInterval(() => {
-        const now = new Date();
-        const hkOffset = 8 * 60;
-        const hkTime = new Date(now.getTime() + (hkOffset - now.getTimezoneOffset()) * 60000);
+        const hk = getHKTime();
         const weekdays = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
         const datetimeEl = document.getElementById('current-datetime');
-        datetimeEl.textContent = `🕐 ${hkTime.getFullYear()}年${hkTime.getMonth()+1}月${hkTime.getDate()}日 ${weekdays[hkTime.getDay()]} ${hkTime.toLocaleTimeString('zh-HK')} HKT`;
-    }, 60000);
+        datetimeEl.textContent = `🕐 ${hk.year}年${hk.month}月${hk.day}日 ${weekdays[hk.dayOfWeek]} ${hk.timeStr} HKT`;
+    }, 1000);
     
     console.log('✅ NDH AED 預測系統就緒');
 });

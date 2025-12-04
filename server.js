@@ -176,6 +176,11 @@ const server = http.createServer((req, res) => {
     
     console.log(`📂 請求文件: ${req.url} -> ${filePath}`);
 
+    // v2.0: Allow iframe embedding from roster app
+    const frameHeaders = {
+        'Content-Security-Policy': "frame-ancestors 'self' https://ndhaedroster.up.railway.app https://*.up.railway.app http://localhost:* http://127.0.0.1:*"
+    };
+
     fs.readFile(filePath, (error, content) => {
         if (error) {
             if (error.code === 'ENOENT') {
@@ -189,7 +194,8 @@ const server = http.createServer((req, res) => {
                             'Content-Type': 'text/html',
                             'Cache-Control': 'no-cache, no-store, must-revalidate',
                             'Pragma': 'no-cache',
-                            'Expires': '0'
+                            'Expires': '0',
+                            ...frameHeaders
                         });
                         res.end(content, 'utf-8');
                     }
@@ -200,7 +206,7 @@ const server = http.createServer((req, res) => {
             }
         } else {
             // 為 JavaScript 和 HTML 文件設置不緩存
-            const headers = { 'Content-Type': contentType };
+            const headers = { 'Content-Type': contentType, ...frameHeaders };
             if (extname === '.js' || extname === '.html') {
                 headers['Cache-Control'] = 'no-cache, no-store, must-revalidate';
                 headers['Pragma'] = 'no-cache';

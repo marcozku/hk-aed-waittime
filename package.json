@@ -1,6 +1,6 @@
 {
   "name": "hk-aed-waittime",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "香港急症室等候時間顯示系統 - Real-time Hong Kong A&E waiting time display system",
   "main": "server.js",
   "scripts": {

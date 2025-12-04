@@ -313,6 +313,16 @@ async function initializeApp() {
     updateLoadingStatus('正在連接急症室數據系統...');
     await fetchAEDData();
     
+    // 從 URL 參數或預設為距離排序
+    const urlParams = new URLSearchParams(window.location.search);
+    const defaultSort = urlParams.get('sort') || 'distance';
+    const defaultCluster = urlParams.get('cluster') || 'all';
+    const defaultDistrict = urlParams.get('district') || 'all';
+    
+    document.getElementById('sort-by').value = defaultSort;
+    document.getElementById('filter-cluster').value = defaultCluster;
+    document.getElementById('filter-district').value = defaultDistrict;
+    
     // 設置控制面板事件監聽器
     document.getElementById('sort-by').addEventListener('change', renderHospitals);
     document.getElementById('filter-cluster').addEventListener('change', renderHospitals);

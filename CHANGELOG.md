@@ -1,5 +1,34 @@
 # 香港急症室等候時間顯示系統 - 更新日誌
 
+## v2.0.2 (2025-12-05 01:16 HKT)
+
+### 🎯 預設排序優化與 URL 參數支援
+- ✅ **預設排序改為距離** - 明確設置預設排序為最近距離
+- ✅ **URL 參數支援** - 支援透過 URL 參數設置預設排序和篩選
+  - `?sort=distance` - 距離排序（預設）
+  - `?sort=waiting-time` - 等候時間排序
+  - `?sort=name` - 名稱排序
+  - `?cluster=NTE` - 篩選聯網
+  - `?district=新界` - 篩選地區
+- ✅ **嵌入模式相容** - 完美支援從 ndh-aed-roster 嵌入時的參數傳遞
+- ✅ **用戶體驗提升** - 確保用戶首次進入時看到離自己最近的醫院
+
+### 📝 技術細節
+```javascript
+// 在 initializeApp() 中支援 URL 參數或預設為距離
+const urlParams = new URLSearchParams(window.location.search);
+const defaultSort = urlParams.get('sort') || 'distance';
+const defaultCluster = urlParams.get('cluster') || 'all';
+const defaultDistrict = urlParams.get('district') || 'all';
+```
+
+### 🔗 使用範例
+- `https://your-app.com/` - 預設距離排序
+- `https://your-app.com/?sort=waiting-time` - 等候時間排序
+- `https://your-app.com/?sort=distance&cluster=NTE` - 新界東聯網，距離排序
+
+---
+
 ## v2.0.0 (2025-12-04 17:55 HKT)
 
 ### 🎨 World-Class UI/UX 全新設計

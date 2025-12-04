@@ -178,7 +178,8 @@ const server = http.createServer((req, res) => {
 
     // v2.0: Allow iframe embedding from roster app
     const frameHeaders = {
-        'Content-Security-Policy': "frame-ancestors 'self' https://ndhaedroster.up.railway.app https://*.up.railway.app http://localhost:* http://127.0.0.1:*"
+        'X-Frame-Options': 'SAMEORIGIN',
+        'Content-Security-Policy': "frame-ancestors 'self' https://ndhaedroster.up.railway.app https://ndhaedduty.up.railway.app https://*.up.railway.app http://localhost:* http://127.0.0.1:*"
     };
 
     fs.readFile(filePath, (error, content) => {

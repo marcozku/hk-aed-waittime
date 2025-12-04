@@ -1,6 +1,6 @@
 {
   "name": "急症室等候時間",
-  "short_name": "急症等候",
+  "short_name": "急症室等候時間",
   "description": "香港急症室實時等候時間 - 18間醫院即時數據",
   "start_url": "/",
   "display": "standalone",

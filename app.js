@@ -367,26 +367,51 @@ function startRealtimeClock() {
 // 獲取用戶位置 - 只詢問一次，並記住選擇
 async function getUserLocation() {
     return new Promise((resolve) => {
-        // 檢查是否已有緩存的位置
+        // 檢查 URL 參數是否要求強制刷新位置
+        const urlParams = new URLSearchParams(window.location.search);
+        const forceRefresh = urlParams.has('refresh_location');
+        
+        if (forceRefresh) {
+            console.log('🔄 URL參數要求強制刷新地理位置');
+            localStorage.removeItem('userLocation');
+            localStorage.removeItem('locationTimestamp');
+        }
+        
+        // 檢查是否已有緩存的位置且未過期（24小時）
         const cachedLocation = localStorage.getItem('userLocation');
-        if (cachedLocation) {
+        const locationTimestamp = localStorage.getItem('locationTimestamp');
+        
+        if (cachedLocation && locationTimestamp && !forceRefresh) {
             try {
-                userLocation = JSON.parse(cachedLocation);
-                console.log('使用緩存的位置:', userLocation);
-                resolve();
-                return;
+                const cacheAge = Date.now() - parseInt(locationTimestamp);
+                const twentyFourHours = 24 * 60 * 60 * 1000;
+                
+                if (cacheAge < twentyFourHours) {
+                    userLocation = JSON.parse(cachedLocation);
+                    const hoursLeft = Math.round((twentyFourHours - cacheAge) / 3600000);
+                    console.log(`✅ 使用緩存的位置 (有效期剩餘: ${hoursLeft}小時):`, userLocation);
+                    resolve();
+                    return;
+                } else {
+                    console.log('⏰ 緩存位置已過期 (超過24小時)，重新獲取地理位置...');
+                    localStorage.removeItem('userLocation');
+                    localStorage.removeItem('locationTimestamp');
+                }
             } catch (e) {
-                console.log('緩存位置解析失敗，將重新獲取');
+                console.log('❌ 緩存位置解析失敗，將重新獲取:', e);
+                localStorage.removeItem('userLocation');
+                localStorage.removeItem('locationTimestamp');
             }
         }
         
         // 設置3秒超時（減少等待時間）
         const timeout = setTimeout(() => {
-            console.log('地理位置請求超時，使用香港天文台位置');
+            console.log('⏱️ 地理位置請求超時，使用香港天文台位置');
             if (!userLocation) {
                 userLocation = { lat: 22.3019, lng: 114.1742 };
-                // 緩存默認位置
+                // 緩存默認位置（也設置 timestamp 避免重複請求）
                 localStorage.setItem('userLocation', JSON.stringify(userLocation));
+                localStorage.setItem('locationTimestamp', Date.now().toString());
             }
             resolve();
         }, 3000);
@@ -407,11 +432,12 @@ async function getUserLocation() {
                 },
                 (error) => {
                     clearTimeout(timeout);
-                    console.log('無法獲取位置，將使用香港天文台位置', error);
+                    console.log('⚠️ 無法獲取位置 (可能在 iframe 中或用戶拒絕)，使用香港天文台位置', error.message);
                     // 用戶拒絕或無法獲取，使用默認位置
                     userLocation = { lat: 22.3019, lng: 114.1742 };
-                    // 緩存默認位置
+                    // 緩存默認位置（也設置 timestamp 避免重複請求）
                     localStorage.setItem('userLocation', JSON.stringify(userLocation));
+                    localStorage.setItem('locationTimestamp', Date.now().toString());
                     resolve();
                 },
                 {
@@ -422,9 +448,10 @@ async function getUserLocation() {
             );
         } else {
             clearTimeout(timeout);
-            console.log('瀏覽器不支持地理位置');
+            console.log('❌ 瀏覽器不支持地理位置 API');
             userLocation = { lat: 22.3019, lng: 114.1742 };
             localStorage.setItem('userLocation', JSON.stringify(userLocation));
+            localStorage.setItem('locationTimestamp', Date.now().toString());
             resolve();
         }
     });

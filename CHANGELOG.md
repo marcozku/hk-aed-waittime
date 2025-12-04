@@ -1,5 +1,52 @@
 # 香港急症室等候時間顯示系統 - 更新日誌
 
+## v8.1 (2025-12-05 01:24 HKT)
+
+### 🔧 地理位置緩存過期檢查修復
+
+**問題**：嵌入到 ndhaedduty app 時，地理位置數據無法正確載入用於實時最近醫院排序
+
+**根本原因**：
+- ❌ `getUserLocation()` 雖然儲存了 `locationTimestamp`，但從未檢查它是否過期
+- ❌ 緩存的位置可能已經過期數天/數週，但仍然被使用
+- ❌ 在 iframe 或嵌入環境中，舊的緩存數據導致距離計算不準確
+
+**修復內容**：
+- ✅ **緩存過期檢查** - 現在正確檢查 24 小時緩存過期時間
+- ✅ **自動清除過期緩存** - 過期後自動重新請求地理位置
+- ✅ **強制刷新支援** - 新增 URL 參數 `?refresh_location=1` 強制刷新位置
+- ✅ **改善錯誤處理** - 在所有錯誤情況下都正確設置 timestamp
+- ✅ **更好的日誌** - 添加 emoji 圖標和剩餘有效期顯示
+
+### 📝 技術細節
+```javascript
+// 檢查緩存是否在 24 小時內
+const cacheAge = Date.now() - parseInt(locationTimestamp);
+const twentyFourHours = 24 * 60 * 60 * 1000;
+
+if (cacheAge < twentyFourHours) {
+    // 使用緩存
+    console.log(`✅ 使用緩存的位置 (有效期剩餘: ${hoursLeft}小時)`);
+} else {
+    // 過期，重新獲取
+    console.log('⏰ 緩存位置已過期 (超過24小時)，重新獲取地理位置...');
+    localStorage.removeItem('userLocation');
+    localStorage.removeItem('locationTimestamp');
+}
+```
+
+### 🔗 使用方式
+- 正常訪問：自動使用緩存位置（24小時內有效）
+- 強制刷新：`https://your-app.com/?refresh_location=1`
+- 嵌入使用：`<iframe src="https://your-app.com/?refresh_location=1">`
+
+### 🎯 影響範圍
+- ✅ 修復嵌入環境中的地理位置問題
+- ✅ 確保最近醫院排序始終準確
+- ✅ 避免使用過期的位置數據
+
+---
+
 ## v2.0.2 (2025-12-05 01:16 HKT)
 
 ### 🎯 預設排序優化與 URL 參數支援

@@ -1,5 +1,49 @@
 # 香港急症室等候時間顯示系統 - 更新日誌
 
+## v8.3 (2025-12-05 01:39 HKT)
+
+### 🔧 修復默認位置誤判問題
+
+**問題**：系統將香港天文台位置 `{lat: 22.3019, lng: 114.1742}` 誤判為「✅ 真實位置」
+
+**根本原因**：
+- ❌ 之前某個版本儲存了默認位置但沒有設置 `isDefaultLocation` 標記
+- ❌ 緩存檢查時只看標記，不檢查實際座標
+- ❌ 導致默認位置被認為是真實位置，不顯示授權提示
+
+**修復內容**：
+- ✅ **雙重檢查機制** - 同時檢查標記 + 實際座標
+  ```javascript
+  const isDefault = localStorage.getItem('isDefaultLocation') === 'true' ||
+                   (userLocation.lat === 22.3019 && userLocation.lng === 114.1742);
+  ```
+- ✅ **自動清除默認位置** - 檢測到香港天文台座標時立即清除緩存
+- ✅ **強制請求新位置** - 清除後立即請求真實地理位置
+- ✅ **增加超時時間** - 從 3 秒增加到 5 秒，給予更多時間獲取位置
+- ✅ **禁用瀏覽器緩存** - `maximumAge: 0` 確保獲取最新位置
+- ✅ **啟用高精度** - `enableHighAccuracy: true` 獲取更準確位置
+
+### 📝 修復邏輯
+```javascript
+// 檢測到默認位置（香港天文台）
+if (userLocation.lat === 22.3019 && userLocation.lng === 114.1742) {
+    console.log('🔄 檢測到默認位置，清除緩存並請求真實位置...');
+    localStorage.removeItem('userLocation');
+    localStorage.removeItem('locationTimestamp');
+    localStorage.removeItem('isDefaultLocation');
+    // 繼續執行地理位置請求
+}
+```
+
+### 🎯 現在的行為
+1. **首次訪問** → 請求位置授權（5秒超時）
+2. **檢測到默認位置** → 自動清除並重新請求
+3. **用戶授權** → 儲存真實位置（移除 `isDefaultLocation` 標記）
+4. **用戶拒絕** → 儲存默認位置 + 設置 `isDefaultLocation: true`
+5. **下次訪問** → 檢查座標，如果是默認位置則重新請求
+
+---
+
 ## v8.2 (2025-12-05 01:35 HKT)
 
 ### 🎯 智能位置授權提示 - 只使用真實位置

@@ -596,13 +596,25 @@ async function getUserLocation() {
                 
                 if (cacheAge < twentyFourHours) {
                     userLocation = JSON.parse(cachedLocation);
-                    const isDefault = localStorage.getItem('isDefaultLocation') === 'true';
+                    // 檢查是否為默認位置（香港天文台座標）
+                    const isDefault = localStorage.getItem('isDefaultLocation') === 'true' ||
+                                    (userLocation.lat === 22.3019 && userLocation.lng === 114.1742);
                     isUsingDefaultLocation = isDefault;
                     const hoursLeft = Math.round((twentyFourHours - cacheAge) / 3600000);
-                    const locationType = isDefault ? '⚠️ 默認位置' : '✅ 真實位置';
+                    const locationType = isDefault ? '⚠️ 默認位置（香港天文台）' : '✅ 真實位置';
                     console.log(`${locationType} (有效期剩餘: ${hoursLeft}小時):`, userLocation);
-                    resolve();
-                    return;
+                    
+                    // 如果是默認位置，清除緩存並重新請求
+                    if (isDefault) {
+                        console.log('🔄 檢測到默認位置，清除緩存並請求真實位置...');
+                        localStorage.removeItem('userLocation');
+                        localStorage.removeItem('locationTimestamp');
+                        localStorage.removeItem('isDefaultLocation');
+                        // 不返回，繼續執行下面的地理位置請求
+                    } else {
+                        resolve();
+                        return;
+                    }
                 } else {
                     console.log('⏰ 緩存位置已過期 (超過24小時)，重新獲取地理位置...');
                     localStorage.removeItem('userLocation');
@@ -617,9 +629,9 @@ async function getUserLocation() {
             }
         }
         
-        // 設置3秒超時（減少等待時間）
+        // 設置5秒超時（給予更多時間獲取真實位置）
         const timeout = setTimeout(() => {
-            console.log('⏱️ 地理位置請求超時，使用香港天文台位置');
+            console.log('⏱️ 地理位置請求超時，使用香港天文台位置（將顯示授權提示）');
             if (!userLocation) {
                 userLocation = { lat: 22.3019, lng: 114.1742 };
                 isUsingDefaultLocation = true;
@@ -629,7 +641,7 @@ async function getUserLocation() {
                 localStorage.setItem('isDefaultLocation', 'true');
             }
             resolve();
-        }, 3000);
+        }, 5000);
         
         if ("geolocation" in navigator) {
             navigator.geolocation.getCurrentPosition(
@@ -660,9 +672,9 @@ async function getUserLocation() {
                     resolve();
                 },
                 {
-                    timeout: 3000,
-                    enableHighAccuracy: false,
-                    maximumAge: 86400000 // 接受24小時內的緩存位置
+                    timeout: 5000,
+                    enableHighAccuracy: true,
+                    maximumAge: 0 // 不接受緩存，強制獲取最新位置
                 }
             );
         } else {

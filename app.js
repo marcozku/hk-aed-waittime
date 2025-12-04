@@ -222,6 +222,7 @@ const HOSPITALS_DATA = {
 
 // 全局變量
 let userLocation = null;
+let isUsingDefaultLocation = false; // 追踪是否使用默認位置
 let currentData = [];
 let refreshTimer = null;
 let retryTimer = null;
@@ -327,6 +328,213 @@ async function initializeApp() {
     document.getElementById('sort-by').addEventListener('change', renderHospitals);
     document.getElementById('filter-cluster').addEventListener('change', renderHospitals);
     document.getElementById('filter-district').addEventListener('change', renderHospitals);
+    
+    // 檢查是否使用默認位置，顯示提示
+    checkAndShowLocationPrompt();
+}
+
+// 檢查並顯示位置提示
+function checkAndShowLocationPrompt() {
+    if (isUsingDefaultLocation) {
+        console.log('⚠️ 正在使用默認位置，顯示真實位置授權提示');
+        showLocationPrompt();
+    }
+}
+
+// 顯示位置授權提示
+function showLocationPrompt() {
+    // 檢查是否已存在提示
+    if (document.getElementById('location-prompt')) {
+        return;
+    }
+    
+    const prompt = document.createElement('div');
+    prompt.id = 'location-prompt';
+    prompt.style.cssText = `
+        position: fixed;
+        top: 80px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 16px 24px;
+        border-radius: 12px;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        max-width: 90%;
+        animation: slideDown 0.3s ease-out;
+    `;
+    
+    prompt.innerHTML = `
+        <span style="font-size: 24px;">📍</span>
+        <div style="flex: 1;">
+            <div style="font-weight: 600; margin-bottom: 4px;">使用真實位置以獲得更準確的距離</div>
+            <div style="font-size: 13px; opacity: 0.9;">目前使用香港天文台位置，點擊授權以使用您的實際位置</div>
+        </div>
+        <button id="enable-location-btn" style="
+            background: white;
+            color: #667eea;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        ">授權位置</button>
+        <button id="dismiss-location-btn" style="
+            background: transparent;
+            color: white;
+            border: 1px solid rgba(255,255,255,0.3);
+            padding: 10px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        ">×</button>
+    `;
+    
+    // 添加動畫樣式
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateX(-50%) translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+        }
+        #enable-location-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        #dismiss-location-btn:hover {
+            background: rgba(255,255,255,0.1);
+        }
+    `;
+    document.head.appendChild(style);
+    
+    document.body.appendChild(prompt);
+    
+    // 授權位置按鈕
+    document.getElementById('enable-location-btn').addEventListener('click', async () => {
+        await requestRealLocation();
+    });
+    
+    // 關閉按鈕
+    document.getElementById('dismiss-location-btn').addEventListener('click', () => {
+        prompt.style.animation = 'slideDown 0.3s ease-out reverse';
+        setTimeout(() => prompt.remove(), 300);
+    });
+}
+
+// 請求真實位置
+async function requestRealLocation() {
+    const prompt = document.getElementById('location-prompt');
+    const btn = document.getElementById('enable-location-btn');
+    
+    if (btn) {
+        btn.textContent = '正在獲取...';
+        btn.disabled = true;
+    }
+    
+    if ("geolocation" in navigator) {
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                userLocation = {
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude
+                };
+                isUsingDefaultLocation = false;
+                
+                console.log('✅ 成功獲取真實位置:', userLocation);
+                
+                // 更新緩存
+                localStorage.setItem('userLocation', JSON.stringify(userLocation));
+                localStorage.setItem('locationTimestamp', Date.now().toString());
+                localStorage.removeItem('isDefaultLocation');
+                
+                // 重新渲染醫院列表
+                renderHospitals();
+                
+                // 顯示成功提示
+                if (prompt) {
+                    prompt.style.background = 'linear-gradient(135deg, #48bb78 0%, #38a169 100%)';
+                    prompt.innerHTML = `
+                        <span style="font-size: 24px;">✅</span>
+                        <div style="flex: 1; font-weight: 600;">已啟用真實位置！距離計算更準確了</div>
+                    `;
+                    setTimeout(() => {
+                        prompt.style.animation = 'slideDown 0.3s ease-out reverse';
+                        setTimeout(() => prompt.remove(), 300);
+                    }, 2000);
+                }
+            },
+            (error) => {
+                console.error('❌ 獲取位置失敗:', error.message);
+                
+                if (prompt) {
+                    prompt.style.background = 'linear-gradient(135deg, #f56565 0%, #c53030 100%)';
+                    prompt.innerHTML = `
+                        <span style="font-size: 24px;">⚠️</span>
+                        <div style="flex: 1;">
+                            <div style="font-weight: 600;">無法獲取位置</div>
+                            <div style="font-size: 13px; opacity: 0.9; margin-top: 4px;">
+                                ${error.code === 1 ? '您拒絕了位置授權' : 
+                                  error.code === 2 ? '無法取得位置資訊' : 
+                                  '位置請求超時'}
+                            </div>
+                        </div>
+                        <button onclick="this.parentElement.remove()" style="
+                            background: white;
+                            color: #f56565;
+                            border: none;
+                            padding: 8px 16px;
+                            border-radius: 6px;
+                            cursor: pointer;
+                            font-weight: 600;
+                        ">關閉</button>
+                    `;
+                    
+                    setTimeout(() => {
+                        if (prompt.parentElement) {
+                            prompt.style.animation = 'slideDown 0.3s ease-out reverse';
+                            setTimeout(() => prompt.remove(), 300);
+                        }
+                    }, 4000);
+                }
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 0
+            }
+        );
+    } else {
+        console.error('❌ 瀏覽器不支持地理位置');
+        if (prompt) {
+            prompt.style.background = 'linear-gradient(135deg, #f56565 0%, #c53030 100%)';
+            prompt.innerHTML = `
+                <span style="font-size: 24px;">❌</span>
+                <div style="flex: 1; font-weight: 600;">您的瀏覽器不支持地理位置功能</div>
+                <button onclick="this.parentElement.remove()" style="
+                    background: white;
+                    color: #f56565;
+                    border: none;
+                    padding: 8px 16px;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    font-weight: 600;
+                ">關閉</button>
+            `;
+        }
+    }
 }
 
 function updateLoadingStatus(message) {
@@ -388,19 +596,24 @@ async function getUserLocation() {
                 
                 if (cacheAge < twentyFourHours) {
                     userLocation = JSON.parse(cachedLocation);
+                    const isDefault = localStorage.getItem('isDefaultLocation') === 'true';
+                    isUsingDefaultLocation = isDefault;
                     const hoursLeft = Math.round((twentyFourHours - cacheAge) / 3600000);
-                    console.log(`✅ 使用緩存的位置 (有效期剩餘: ${hoursLeft}小時):`, userLocation);
+                    const locationType = isDefault ? '⚠️ 默認位置' : '✅ 真實位置';
+                    console.log(`${locationType} (有效期剩餘: ${hoursLeft}小時):`, userLocation);
                     resolve();
                     return;
                 } else {
                     console.log('⏰ 緩存位置已過期 (超過24小時)，重新獲取地理位置...');
                     localStorage.removeItem('userLocation');
                     localStorage.removeItem('locationTimestamp');
+                    localStorage.removeItem('isDefaultLocation');
                 }
             } catch (e) {
                 console.log('❌ 緩存位置解析失敗，將重新獲取:', e);
                 localStorage.removeItem('userLocation');
                 localStorage.removeItem('locationTimestamp');
+                localStorage.removeItem('isDefaultLocation');
             }
         }
         
@@ -409,9 +622,11 @@ async function getUserLocation() {
             console.log('⏱️ 地理位置請求超時，使用香港天文台位置');
             if (!userLocation) {
                 userLocation = { lat: 22.3019, lng: 114.1742 };
+                isUsingDefaultLocation = true;
                 // 緩存默認位置（也設置 timestamp 避免重複請求）
                 localStorage.setItem('userLocation', JSON.stringify(userLocation));
                 localStorage.setItem('locationTimestamp', Date.now().toString());
+                localStorage.setItem('isDefaultLocation', 'true');
             }
             resolve();
         }, 3000);
@@ -424,10 +639,12 @@ async function getUserLocation() {
                         lat: position.coords.latitude,
                         lng: position.coords.longitude
                     };
-                    console.log('已獲取用戶位置:', userLocation);
+                    isUsingDefaultLocation = false;
+                    console.log('✅ 已獲取用戶真實位置:', userLocation);
                     // 緩存用戶位置（24小時有效）
                     localStorage.setItem('userLocation', JSON.stringify(userLocation));
                     localStorage.setItem('locationTimestamp', Date.now().toString());
+                    localStorage.removeItem('isDefaultLocation');
                     resolve();
                 },
                 (error) => {
@@ -435,9 +652,11 @@ async function getUserLocation() {
                     console.log('⚠️ 無法獲取位置 (可能在 iframe 中或用戶拒絕)，使用香港天文台位置', error.message);
                     // 用戶拒絕或無法獲取，使用默認位置
                     userLocation = { lat: 22.3019, lng: 114.1742 };
+                    isUsingDefaultLocation = true;
                     // 緩存默認位置（也設置 timestamp 避免重複請求）
                     localStorage.setItem('userLocation', JSON.stringify(userLocation));
                     localStorage.setItem('locationTimestamp', Date.now().toString());
+                    localStorage.setItem('isDefaultLocation', 'true');
                     resolve();
                 },
                 {
@@ -450,8 +669,10 @@ async function getUserLocation() {
             clearTimeout(timeout);
             console.log('❌ 瀏覽器不支持地理位置 API');
             userLocation = { lat: 22.3019, lng: 114.1742 };
+            isUsingDefaultLocation = true;
             localStorage.setItem('userLocation', JSON.stringify(userLocation));
             localStorage.setItem('locationTimestamp', Date.now().toString());
+            localStorage.setItem('isDefaultLocation', 'true');
             resolve();
         }
     });

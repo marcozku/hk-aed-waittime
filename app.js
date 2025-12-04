@@ -348,6 +348,10 @@ function showLocationPrompt() {
         return;
     }
     
+    // 檢查是否為 iframe 權限錯誤
+    const geolocationError = localStorage.getItem('geolocationError') || '';
+    const isIframePermissionsError = geolocationError.includes('Permissions policy');
+    
     const prompt = document.createElement('div');
     prompt.id = 'location-prompt';
     prompt.style.cssText = `
@@ -355,7 +359,7 @@ function showLocationPrompt() {
         top: 80px;
         left: 50%;
         transform: translateX(-50%);
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: ${isIframePermissionsError ? 'linear-gradient(135deg, #f56565 0%, #c53030 100%)' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'};
         color: white;
         padding: 16px 24px;
         border-radius: 12px;
@@ -368,34 +372,60 @@ function showLocationPrompt() {
         animation: slideDown 0.3s ease-out;
     `;
     
-    prompt.innerHTML = `
-        <span style="font-size: 24px;">📍</span>
-        <div style="flex: 1;">
-            <div style="font-weight: 600; margin-bottom: 4px;">使用真實位置以獲得更準確的距離</div>
-            <div style="font-size: 13px; opacity: 0.9;">目前使用香港天文台位置，點擊授權以使用您的實際位置</div>
-        </div>
-        <button id="enable-location-btn" style="
-            background: white;
-            color: #667eea;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 8px;
-            font-weight: 600;
-            cursor: pointer;
-            font-size: 14px;
-            transition: all 0.2s;
-        ">授權位置</button>
-        <button id="dismiss-location-btn" style="
-            background: transparent;
-            color: white;
-            border: 1px solid rgba(255,255,255,0.3);
-            padding: 10px 16px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 14px;
-            transition: all 0.2s;
-        ">×</button>
-    `;
+    if (isIframePermissionsError) {
+        // iframe 權限錯誤提示
+        prompt.innerHTML = `
+            <span style="font-size: 24px;">⚠️</span>
+            <div style="flex: 1;">
+                <div style="font-weight: 600; margin-bottom: 4px;">無法使用地理位置功能</div>
+                <div style="font-size: 13px; opacity: 0.9; margin-bottom: 8px;">此頁面嵌入在 iframe 中，但父頁面未授予地理位置權限</div>
+                <div style="font-size: 12px; background: rgba(0,0,0,0.2); padding: 8px; border-radius: 6px; font-family: monospace;">
+                    請在嵌入頁面添加：<br>
+                    &lt;iframe src="..." <strong>allow="geolocation"</strong>&gt;
+                </div>
+            </div>
+            <button id="dismiss-location-btn" style="
+                background: white;
+                color: #f56565;
+                border: none;
+                padding: 10px 16px;
+                border-radius: 8px;
+                cursor: pointer;
+                font-weight: 600;
+                font-size: 14px;
+            ">知道了</button>
+        `;
+    } else {
+        // 正常授權提示
+        prompt.innerHTML = `
+            <span style="font-size: 24px;">📍</span>
+            <div style="flex: 1;">
+                <div style="font-weight: 600; margin-bottom: 4px;">使用真實位置以獲得更準確的距離</div>
+                <div style="font-size: 13px; opacity: 0.9;">目前使用香港天文台位置，點擊授權以使用您的實際位置</div>
+            </div>
+            <button id="enable-location-btn" style="
+                background: white;
+                color: #667eea;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 8px;
+                font-weight: 600;
+                cursor: pointer;
+                font-size: 14px;
+                transition: all 0.2s;
+            ">授權位置</button>
+            <button id="dismiss-location-btn" style="
+                background: transparent;
+                color: white;
+                border: 1px solid rgba(255,255,255,0.3);
+                padding: 10px 16px;
+                border-radius: 8px;
+                cursor: pointer;
+                font-size: 14px;
+                transition: all 0.2s;
+            ">×</button>
+        `;
+    }
     
     // 添加動畫樣式
     const style = document.createElement('style');
@@ -422,16 +452,22 @@ function showLocationPrompt() {
     
     document.body.appendChild(prompt);
     
-    // 授權位置按鈕
-    document.getElementById('enable-location-btn').addEventListener('click', async () => {
-        await requestRealLocation();
-    });
+    // 授權位置按鈕（只在非 iframe 錯誤時存在）
+    const enableBtn = document.getElementById('enable-location-btn');
+    if (enableBtn) {
+        enableBtn.addEventListener('click', async () => {
+            await requestRealLocation();
+        });
+    }
     
     // 關閉按鈕
-    document.getElementById('dismiss-location-btn').addEventListener('click', () => {
-        prompt.style.animation = 'slideDown 0.3s ease-out reverse';
-        setTimeout(() => prompt.remove(), 300);
-    });
+    const dismissBtn = document.getElementById('dismiss-location-btn');
+    if (dismissBtn) {
+        dismissBtn.addEventListener('click', () => {
+            prompt.style.animation = 'slideDown 0.3s ease-out reverse';
+            setTimeout(() => prompt.remove(), 300);
+        });
+    }
 }
 
 // 請求真實位置
@@ -661,7 +697,17 @@ async function getUserLocation() {
                 },
                 (error) => {
                     clearTimeout(timeout);
-                    console.log('⚠️ 無法獲取位置 (可能在 iframe 中或用戶拒絕)，使用香港天文台位置', error.message);
+                    
+                    // 檢查是否為 Permissions Policy 錯誤（iframe 權限問題）
+                    const isPermissionsPolicyError = error.message && error.message.includes('Permissions policy');
+                    
+                    if (isPermissionsPolicyError) {
+                        console.error('❌ iframe 權限錯誤：父頁面的 <iframe> 標籤缺少 allow="geolocation" 屬性');
+                        console.error('📝 請在嵌入頁面中添加：<iframe src="..." allow="geolocation">');
+                    } else {
+                        console.log('⚠️ 無法獲取位置 (用戶拒絕或其他錯誤):', error.message);
+                    }
+                    
                     // 用戶拒絕或無法獲取，使用默認位置
                     userLocation = { lat: 22.3019, lng: 114.1742 };
                     isUsingDefaultLocation = true;
@@ -669,6 +715,7 @@ async function getUserLocation() {
                     localStorage.setItem('userLocation', JSON.stringify(userLocation));
                     localStorage.setItem('locationTimestamp', Date.now().toString());
                     localStorage.setItem('isDefaultLocation', 'true');
+                    localStorage.setItem('geolocationError', error.message);
                     resolve();
                 },
                 {

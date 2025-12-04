@@ -1,5 +1,51 @@
 # 香港急症室等候時間顯示系統 - 更新日誌
 
+## v8.4 (2025-12-05 01:42 HKT)
+
+### 🎯 改善 iframe 權限錯誤提示
+
+**問題**：嵌入在 iframe 中時，如果父頁面未授予地理位置權限，會顯示誤導性提示
+
+**改進內容**：
+- ✅ **智能檢測 Permissions Policy 錯誤**
+- ✅ **顯示專用的 iframe 權限錯誤提示**
+- ✅ **提供明確的修復指引**（顯示需要添加的代碼）
+- ✅ **改善錯誤日誌**（Console 清楚說明問題）
+- ✅ **儲存錯誤訊息**（localStorage 追踪錯誤類型）
+
+### 🎨 新的 iframe 錯誤提示
+
+當檢測到 `Permissions policy violation` 時，顯示紅色警告橫幅：
+
+```
+⚠️ 無法使用地理位置功能
+此頁面嵌入在 iframe 中，但父頁面未授予地理位置權限
+
+請在嵌入頁面添加：
+<iframe src="..." allow="geolocation">
+
+[知道了]
+```
+
+### 📝 技術實現
+
+```javascript
+// 檢測 Permissions Policy 錯誤
+const isPermissionsPolicyError = error.message.includes('Permissions policy');
+
+if (isPermissionsPolicyError) {
+    console.error('❌ iframe 權限錯誤：父頁面的 <iframe> 標籤缺少 allow="geolocation" 屬性');
+    console.error('📝 請在嵌入頁面中添加：<iframe src="..." allow="geolocation">');
+    localStorage.setItem('geolocationError', error.message);
+}
+```
+
+### 🔧 配合修復
+
+同時更新了 ndh-aed-roster 的 iframe 標籤，添加了 `allow="geolocation"` 屬性。
+
+---
+
 ## v8.3 (2025-12-05 01:39 HKT)
 
 ### 🔧 修復默認位置誤判問題

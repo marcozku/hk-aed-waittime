@@ -7,7 +7,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <meta name="description" content="香港急症室實時等候時間 - 18間醫院即時數據">
-    <meta name="theme-color" content="#667eea">
+    <meta name="theme-color" content="#0a0a0f">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="急症室等候時間">
@@ -19,87 +19,147 @@
     <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
     <link rel="manifest" href="manifest.json">
     
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
     <title>急症室等候時間</title>
-    <link rel="stylesheet" href="styles.css?v=1.2.1">
+    <link rel="stylesheet" href="styles.css?v=2.0.0">
 </head>
 <body>
     <!-- 加載畫面 -->
     <div id="loading-screen" class="loading-screen">
-        <div class="loader"></div>
-        <p>正在連接急症室數據系統...</p>
-        <p id="loading-status" class="loading-status"></p>
+        <div class="loading-content">
+            <div class="loading-icon">
+                <svg viewBox="0 0 80 80" class="pulse-ring">
+                    <circle cx="40" cy="40" r="35" fill="none" stroke="url(#loadingGradient)" stroke-width="3"/>
+                    <defs>
+                        <linearGradient id="loadingGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" style="stop-color:#00d4aa"/>
+                            <stop offset="100%" style="stop-color:#7c3aed"/>
+                        </linearGradient>
+                    </defs>
+                </svg>
+                <div class="loading-cross">+</div>
+            </div>
+            <h2 class="loading-title">急症室等候時間</h2>
+            <p class="loading-text">正在連接醫院數據...</p>
+            <p id="loading-status" class="loading-status"></p>
+        </div>
     </div>
 
     <!-- 主頁面 -->
     <div id="main-content" class="main-content hidden">
-        <header>
-            <h1>🏥 急症室等候時間</h1>
-            <div class="current-time" id="current-time"></div>
-            <div class="weather-info" id="weather-info">
-                <span id="weather-temp"></span>
-                <span id="weather-desc"></span>
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-top">
+                <div class="header-title-group">
+                    <h1 class="app-title">急症室等候時間</h1>
+                    <span class="live-badge">
+                        <span class="live-dot"></span>
+                        即時更新
+                    </span>
+                </div>
+                <div class="header-time" id="current-time"></div>
             </div>
+            
+            <div class="header-info">
+                <div class="weather-pill" id="weather-info">
+                    <span class="weather-icon" id="weather-icon">🌡️</span>
+                    <span id="weather-temp">--°C</span>
+                    <span class="weather-divider">|</span>
+                    <span id="weather-desc">載入中...</span>
+                </div>
+                <div class="update-pill">
+                    <span class="update-icon">⏱️</span>
+                    <span id="last-update-time">--:--:--</span>
+                </div>
+            </div>
+            
             <div class="weather-warnings" id="weather-warnings"></div>
-            <div class="last-update">
-                最後更新：<span id="last-update-time"></span>
-            </div>
         </header>
 
-        <!-- 控制面板 -->
-        <div class="control-panel">
-            <div class="control-group">
-                <label>排序方式：</label>
-                <select id="sort-by">
-                    <option value="distance">最近醫院</option>
-                    <option value="waiting-time">等候時間</option>
-                    <option value="name">醫院名稱</option>
-                </select>
+        <!-- Quick Stats -->
+        <section class="quick-stats">
+            <div class="stat-card stat-fastest">
+                <div class="stat-icon">⚡</div>
+                <div class="stat-content">
+                    <span class="stat-label">最短等候</span>
+                    <span class="stat-value" id="stat-fastest">--</span>
+                </div>
             </div>
-            <div class="control-group">
-                <label>醫院聯網：</label>
-                <select id="filter-cluster">
-                    <option value="all">全部</option>
-                    <option value="HKE">港島東聯網</option>
-                    <option value="HKW">港島西聯網</option>
-                    <option value="KCC">九龍中聯網</option>
-                    <option value="KEC">九龍東聯網</option>
-                    <option value="KWC">九龍西聯網</option>
-                    <option value="NTE">新界東聯網</option>
-                    <option value="NTW">新界西聯網</option>
-                </select>
+            <div class="stat-card stat-average">
+                <div class="stat-icon">📊</div>
+                <div class="stat-content">
+                    <span class="stat-label">平均時間</span>
+                    <span class="stat-value" id="stat-average">--</span>
+                </div>
             </div>
-            <div class="control-group">
-                <label>地區：</label>
-                <select id="filter-district">
-                    <option value="all">全部地區</option>
-                    <option value="香港島">香港島</option>
-                    <option value="九龍">九龍</option>
-                    <option value="新界">新界</option>
-                </select>
+            <div class="stat-card stat-hospitals">
+                <div class="stat-icon">🏥</div>
+                <div class="stat-content">
+                    <span class="stat-label">監測醫院</span>
+                    <span class="stat-value" id="stat-hospitals">18</span>
+                </div>
             </div>
-        </div>
+        </section>
 
-        <!-- 醫院列表 -->
-        <div class="hospitals-container" id="hospitals-container">
-            <!-- 將由JavaScript動態生成 -->
-        </div>
-
-        <!-- 連接狀態 -->
-        <footer>
-            <div class="connection-status" id="connection-status">
-                <span class="status-indicator"></span>
-                <span class="status-text"></span>
+        <!-- Filters -->
+        <section class="filters-section">
+            <div class="filter-scroll">
+                <div class="filter-group">
+                    <select id="sort-by" class="filter-select">
+                        <option value="distance">📍 最近距離</option>
+                        <option value="waiting-time">⏰ 等候時間</option>
+                        <option value="name">🔤 醫院名稱</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <select id="filter-cluster" class="filter-select">
+                        <option value="all">全部聯網</option>
+                        <option value="HKE">港島東</option>
+                        <option value="HKW">港島西</option>
+                        <option value="KCC">九龍中</option>
+                        <option value="KEC">九龍東</option>
+                        <option value="KWC">九龍西</option>
+                        <option value="NTE">新界東</option>
+                        <option value="NTW">新界西</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <select id="filter-district" class="filter-select">
+                        <option value="all">全部地區</option>
+                        <option value="香港島">香港島</option>
+                        <option value="九龍">九龍</option>
+                        <option value="新界">新界</option>
+                    </select>
+                </div>
             </div>
-            <div class="page-views" id="page-views">
-                <span class="views-icon">👁️</span>
-                <span class="views-label">頁面瀏覽次數：</span>
-                <span class="views-count" id="views-count">載入中...</span>
-                <span class="views-live-indicator" title="每10秒自動更新">🔴 LIVE</span>
+        </section>
+
+        <!-- Hospital List -->
+        <section class="hospitals-section">
+            <div class="hospitals-container" id="hospitals-container">
+                <!-- 動態生成 -->
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="app-footer">
+            <div class="footer-content">
+                <div class="connection-status" id="connection-status">
+                    <span class="status-indicator"></span>
+                    <span class="status-text"></span>
+                </div>
+                <div class="page-views">
+                    <span class="views-count" id="views-count">--</span>
+                    <span class="views-label">次瀏覽</span>
+                </div>
             </div>
         </footer>
     </div>
 
-    <script src="app.js?v=7.0"></script>
+    <script src="app.js?v=8.0"></script>
 </body>
 </html>
-

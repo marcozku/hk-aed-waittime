@@ -4,8 +4,8 @@
   "description": "香港急症室實時等候時間 - 18間醫院即時數據",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#667eea",
-  "theme_color": "#667eea",
+  "background_color": "#0a0a0f",
+  "theme_color": "#0a0a0f",
   "orientation": "portrait-primary",
   "icons": [
     {

@@ -578,8 +578,11 @@ function renderHospitals() {
         return 0;
     });
     
-    // 生成HTML
-    container.innerHTML = filteredData.map(hospital => createHospitalCard(hospital)).join('');
+    // 生成HTML with staggered animation
+    container.innerHTML = filteredData.map((hospital, index) => createHospitalCard(hospital, index)).join('');
+    
+    // 更新快速統計
+    updateQuickStats();
 }
 
 // 解析等候時間（轉換為分鐘）
@@ -623,44 +626,55 @@ function getWaitingTimeLevel(waitStr) {
     return 3; // > 6小時：紅色（嚴重）
 }
 
-// 創建醫院卡片
-function createHospitalCard(hospital) {
+// 創建醫院卡片 - 世界級 UI 設計
+function createHospitalCard(hospital, index) {
     const waitLevel = getWaitingTimeLevel(hospital.topWait);
     const mapUrl = `https://www.google.com/maps/search/?api=1&query=${hospital.lat},${hospital.lng}`;
     
-    // 建立詳細等候時間信息
-    const detailTimes = [];
-    if (hospital.t3p50) detailTimes.push(`🟡 緊急: ${hospital.t3p50}`);
-    if (hospital.t45p50) detailTimes.push(`🔵 次緊急: ${hospital.t45p50}`);
+    // Animation delay for staggered reveal
+    const animDelay = Math.min(index * 0.05, 0.5);
     
     return `
-        <div class="hospital-card">
+        <div class="hospital-card" style="animation-delay: ${animDelay}s">
             <div class="hospital-header">
                 <div class="hospital-name">${hospital.name}</div>
                 <div class="hospital-name-en">${hospital.nameEn}</div>
-                <span class="hospital-cluster">${hospital.clusterName}</span>
-                <span class="hospital-district">${hospital.district}</span>
+                <div class="hospital-tags">
+                    <span class="hospital-cluster">${hospital.clusterName}</span>
+                    <span class="hospital-district">${hospital.district}</span>
+                </div>
             </div>
             
             <div class="waiting-time-display wait-level-${waitLevel}">
-                <div class="waiting-label">最長等候時間（次緊急/非緊急）</div>
+                <div class="waiting-label">預計等候時間</div>
                 <div class="waiting-time">${hospital.topWait}</div>
             </div>
             
-            ${detailTimes.length > 0 ? `
-                <div class="hospital-info" style="margin-top: 10px; font-size: 0.9em;">
-                    <div><strong>中位數等候時間：</strong></div>
-                    ${detailTimes.map(t => `<div>${t}</div>`).join('')}
+            ${(hospital.t3p50 || hospital.t45p50) ? `
+                <div class="detail-times">
+                    ${hospital.t3p50 ? `
+                        <div class="detail-time-item">
+                            <span class="detail-time-label">🟡 緊急</span>
+                            <span class="detail-time-value">${hospital.t3p50}</span>
+                        </div>
+                    ` : ''}
+                    ${hospital.t45p50 ? `
+                        <div class="detail-time-item">
+                            <span class="detail-time-label">🔵 次緊急</span>
+                            <span class="detail-time-value">${hospital.t45p50}</span>
+                        </div>
+                    ` : ''}
                 </div>
             ` : ''}
             
             <div class="hospital-distance">
-                📍 距離: ${hospital.distance.toFixed(1)} 公里
+                <span>📍</span>
+                <span>${hospital.distance.toFixed(1)} 公里</span>
             </div>
             
             <div class="hospital-info">
-                <div><strong>地址:</strong> ${hospital.address}</div>
-                <div><strong>電話:</strong> ${hospital.phone}</div>
+                <div><strong>地址</strong> ${hospital.address}</div>
+                <div><strong>電話</strong> ${hospital.phone}</div>
             </div>
             
             ${hospital.specialtiesWarning ? `
@@ -670,11 +684,63 @@ function createHospitalCard(hospital) {
             ` : ''}
             
             <div class="hospital-actions">
-                <a href="${mapUrl}" target="_blank" class="btn btn-map">🗺️ 地圖</a>
-                <a href="tel:${hospital.phone.replace(/\s/g, '')}" class="btn btn-call">📞 致電</a>
+                <a href="${mapUrl}" target="_blank" class="btn btn-map">
+                    <span>🗺️</span>
+                    <span>導航</span>
+                </a>
+                <a href="tel:${hospital.phone.replace(/\s/g, '')}" class="btn btn-call">
+                    <span>📞</span>
+                    <span>致電</span>
+                </a>
             </div>
         </div>
     `;
+}
+
+// 更新快速統計
+function updateQuickStats() {
+    if (currentData.length === 0) return;
+    
+    // 計算最短等候時間
+    let fastestTime = Infinity;
+    let fastestHospital = '';
+    let totalMinutes = 0;
+    let validCount = 0;
+    
+    currentData.forEach(hospital => {
+        const minutes = parseWaitingTime(hospital.topWait);
+        if (minutes < 999999) {
+            if (minutes < fastestTime) {
+                fastestTime = minutes;
+                fastestHospital = hospital.topWait;
+            }
+            totalMinutes += minutes;
+            validCount++;
+        }
+    });
+    
+    // 更新 UI
+    const fastestEl = document.getElementById('stat-fastest');
+    const averageEl = document.getElementById('stat-average');
+    const hospitalsEl = document.getElementById('stat-hospitals');
+    
+    if (fastestEl && fastestTime < Infinity) {
+        fastestEl.textContent = fastestHospital;
+    }
+    
+    if (averageEl && validCount > 0) {
+        const avgMinutes = Math.round(totalMinutes / validCount);
+        if (avgMinutes < 60) {
+            averageEl.textContent = `${avgMinutes} 分鐘`;
+        } else {
+            const hours = (avgMinutes / 60).toFixed(1);
+            averageEl.textContent = `${hours} 小時`;
+        }
+    }
+    
+    if (hospitalsEl) {
+        hospitalsEl.textContent = currentData.length.toString();
+    }
 }
 
 // 更新最後更新時間

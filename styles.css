@@ -251,8 +251,8 @@ body::before {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    background: var(--accent-green-light);
-    color: #059669;
+    background: var(--accent-yellow-light);
+    color: #b45309;
     padding: 6px 14px;
     border-radius: var(--radius-full);
     font-size: 12px;
@@ -264,9 +264,29 @@ body::before {
 .live-dot {
     width: 8px;
     height: 8px;
-    background: var(--accent-green);
+    background: currentColor;
     border-radius: 50%;
     animation: livePulse 2s ease-in-out infinite;
+}
+
+.live-badge.connected {
+    background: var(--accent-green-light);
+    color: #059669;
+}
+
+.live-badge.connecting {
+    background: var(--accent-yellow-light);
+    color: #b45309;
+}
+
+.live-badge.stale {
+    background: var(--accent-orange-light);
+    color: #c2410c;
+}
+
+.live-badge.error {
+    background: var(--accent-red-light);
+    color: #dc2626;
 }
 
 @keyframes livePulse {
@@ -563,6 +583,7 @@ body::before {
     color: var(--text-tertiary);
     font-weight: 500;
     margin-bottom: var(--space-xs);
+    line-height: 1.4;
 }
 
 .waiting-time {
@@ -607,7 +628,7 @@ body::before {
 /* Detail Times */
 .detail-times {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
     gap: var(--space-sm);
     margin: var(--space-md) 0;
 }
@@ -702,6 +723,11 @@ body::before {
     font-family: var(--font-family);
 }
 
+.btn-disabled {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
 .btn-map {
     background: var(--gradient-green);
     color: white;
@@ -768,6 +794,7 @@ body::before {
 
 .status-indicator.connected { background: var(--accent-green); }
 .status-indicator.connecting { background: var(--accent-yellow); }
+.status-indicator.stale { background: var(--accent-orange); }
 .status-indicator.error { background: var(--accent-red); }
 
 @keyframes statusPulse {

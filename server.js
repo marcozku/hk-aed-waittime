@@ -4,115 +4,126 @@ const path = require('path');
 
 const PORT = process.env.PORT || 8080;
 
-// 使用持久化目錄（Railway Volume 或本地 data 目錄）
-const DATA_DIR = process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, 'data');
-const COUNTER_FILE = path.join(DATA_DIR, 'page-views.txt');
-
-// 確保數據目錄存在
-try {
-    if (!fs.existsSync(DATA_DIR)) {
-        console.log('📁 創建數據目錄:', DATA_DIR);
-        fs.mkdirSync(DATA_DIR, { recursive: true });
-    }
-} catch (error) {
-    console.error('❌ 創建數據目錄失敗:', error);
-}
-
-// 初始化計數器文件
-try {
-    if (!fs.existsSync(COUNTER_FILE)) {
-        // 使用環境變量的初始值（如果 Volume 未配置）
-        const initialValue = process.env.INITIAL_PAGE_VIEWS || '0';
-        console.log('📄 創建計數器文件:', COUNTER_FILE);
-        console.log('📊 初始計數值:', initialValue);
-        fs.writeFileSync(COUNTER_FILE, initialValue);
-        
-        // 警告：如果多次看到這個消息，說明 Volume 未正確配置
-        if (process.env.RAILWAY_ENVIRONMENT) {
-            console.warn('⚠️ 警告：計數器文件不存在，創建新文件');
-            console.warn('⚠️ 如果這不是首次部署，請檢查 Railway Volume 配置');
-            console.warn('⚠️ 詳見：RAILWAY-VOLUME-SETUP.md');
-        }
-    } else {
-        console.log('✅ 計數器文件已存在:', COUNTER_FILE);
-        const currentCount = fs.readFileSync(COUNTER_FILE, 'utf8');
-        console.log('📊 當前計數:', currentCount);
-        console.log('🎉 數據持久化正常工作！');
-    }
-} catch (error) {
-    console.error('❌ 初始化計數器失敗:', error);
-}
-
-console.log('💾 數據持久化路徑:', COUNTER_FILE);
-console.log('🔧 Volume 掛載路徑:', process.env.RAILWAY_VOLUME_MOUNT_PATH || '未配置');
-console.log('📝 初始值設定:', process.env.INITIAL_PAGE_VIEWS || '0 (默認)');
-
-// MIME types
-const mimeTypes = {
-    '.html': 'text/html',
-    '.js': 'text/javascript',
-    '.css': 'text/css',
-    '.json': 'application/json',
+const TEXT_FILE_EXTENSIONS = new Set(['.html', '.js', '.css', '.json', '.svg']);
+const MIME_TYPES = {
+    '.html': 'text/html; charset=utf-8',
+    '.js': 'text/javascript; charset=utf-8',
+    '.css': 'text/css; charset=utf-8',
+    '.json': 'application/json; charset=utf-8',
     '.png': 'image/png',
-    '.jpg': 'image/jpg',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
     '.gif': 'image/gif',
-    '.svg': 'image/svg+xml',
+    '.svg': 'image/svg+xml; charset=utf-8',
     '.ico': 'image/x-icon'
 };
 
-// 讀取並增加計數器（帶文件鎖保護）
-function incrementCounter() {
+const PUBLIC_FILES = new Set([
+    'index.html',
+    'app.js',
+    'styles.css',
+    'manifest.json',
+    'favicon.svg',
+    'favicon-16.png',
+    'favicon-32.png',
+    'apple-touch-icon.png',
+    'icon-192.png',
+    'icon-512.png'
+]);
+
+const FRAME_HEADERS = {
+    'Content-Security-Policy': "frame-ancestors 'self' https://ndhaedroster.up.railway.app https://*.up.railway.app http://localhost:* http://127.0.0.1:*",
+    'Permissions-Policy': 'geolocation=(self "https://ndhaedroster.up.railway.app" "https://*.up.railway.app" "http://localhost:*" "http://127.0.0.1:*")',
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+    'X-Content-Type-Options': 'nosniff'
+};
+
+function getDataDir(env = process.env) {
+    return env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, 'data');
+}
+
+function getCounterFile(env = process.env) {
+    return path.join(getDataDir(env), 'page-views.txt');
+}
+
+function sanitizeInitialCounterValue(rawValue) {
+    const parsed = Number.parseInt(rawValue, 10);
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
+}
+
+function ensureDataStorage(counterFile = getCounterFile(), env = process.env) {
+    const dataDir = path.dirname(counterFile);
+
     try {
-        // 讀取當前值
-        const rawData = fs.readFileSync(COUNTER_FILE, 'utf8').trim();
-        console.log('📖 讀取原始數據:', `"${rawData}"`);
-        
-        let count = parseInt(rawData);
-        
-        // 驗證解析結果
-        if (isNaN(count) || count < 0) {
-            console.warn('⚠️ 無效的計數值，重置為 0');
-            count = 0;
+        if (!fs.existsSync(dataDir)) {
+            console.log('📁 創建數據目錄:', dataDir);
+            fs.mkdirSync(dataDir, { recursive: true });
         }
-        
-        console.log('🔢 解析後的計數:', count);
-        
-        // 增加計數
-        count++;
-        
-        // 寫回文件
-        fs.writeFileSync(COUNTER_FILE, count.toString(), 'utf8');
-        
-        // 驗證寫入
-        const verify = fs.readFileSync(COUNTER_FILE, 'utf8').trim();
-        console.log(`✅ 計數器增加: ${count}, 驗證: ${verify}`);
-        
+    } catch (error) {
+        console.error('❌ 創建數據目錄失敗:', error);
+    }
+
+    try {
+        if (!fs.existsSync(counterFile)) {
+            const initialValue = sanitizeInitialCounterValue(env.INITIAL_PAGE_VIEWS || '0');
+            console.log('📄 創建計數器文件:', counterFile);
+            console.log('📊 初始計數值:', initialValue);
+            fs.writeFileSync(counterFile, initialValue.toString(), 'utf8');
+
+            if (env.RAILWAY_ENVIRONMENT) {
+                console.warn('⚠️ 警告：計數器文件不存在，創建新文件');
+                console.warn('⚠️ 如果這不是首次部署，請檢查 Railway Volume 配置');
+                console.warn('⚠️ 詳見：RAILWAY-VOLUME-SETUP.md');
+            }
+        } else {
+            const currentCount = fs.readFileSync(counterFile, 'utf8').trim();
+            console.log('✅ 計數器文件已存在:', counterFile);
+            console.log('📊 當前計數:', currentCount);
+            console.log('🎉 數據持久化正常工作！');
+        }
+    } catch (error) {
+        console.error('❌ 初始化計數器失敗:', error);
+    }
+
+    console.log('💾 數據持久化路徑:', counterFile);
+    console.log('🔧 Volume 掛載路徑:', env.RAILWAY_VOLUME_MOUNT_PATH || '未配置');
+    console.log('📝 初始值設定:', sanitizeInitialCounterValue(env.INITIAL_PAGE_VIEWS || '0'));
+}
+
+function readCounter(counterFile) {
+    const rawData = fs.readFileSync(counterFile, 'utf8').trim();
+    const count = Number.parseInt(rawData, 10);
+
+    if (!Number.isFinite(count) || count < 0) {
+        console.warn('⚠️ 讀取到無效的計數值:', rawData);
+        return 0;
+    }
+
+    return count;
+}
+
+// 使用同步文件操作，確保單進程內請求順序一致。
+function incrementCounter(counterFile = getCounterFile()) {
+    try {
+        const count = readCounter(counterFile) + 1;
+        fs.writeFileSync(counterFile, count.toString(), 'utf8');
         return count;
     } catch (error) {
         console.error('❌ 計數器錯誤:', error);
         console.error('錯誤堆疊:', error.stack);
-        
-        // 嘗試讀取當前值返回，而不是返回 0
+
         try {
-            const currentCount = parseInt(fs.readFileSync(COUNTER_FILE, 'utf8') || '0');
-            return isNaN(currentCount) ? 1 : currentCount;
+            const currentCount = readCounter(counterFile);
+            return currentCount > 0 ? currentCount : 1;
         } catch {
-            return 1; // 錯誤時返回 1 而不是 0
+            return 1;
         }
     }
 }
 
-// 只讀取計數器（不增加）
-function getCounter() {
+function getCounter(counterFile = getCounterFile()) {
     try {
-        const rawData = fs.readFileSync(COUNTER_FILE, 'utf8').trim();
-        const count = parseInt(rawData);
-        
-        if (isNaN(count) || count < 0) {
-            console.warn('⚠️ 讀取到無效的計數值:', rawData);
-            return 0;
-        }
-        
+        const count = readCounter(counterFile);
         console.log(`📊 讀取計數: ${count}`);
         return count;
     } catch (error) {
@@ -121,110 +132,156 @@ function getCounter() {
     }
 }
 
-const server = http.createServer((req, res) => {
-    const timestamp = new Date().toISOString();
-    console.log(`[${timestamp}] ${req.method} ${req.url}`);
-
-    // 解析 URL（移除查詢字符串用於路由判斷）
-    const urlPath = req.url.split('?')[0];
-
-    // API 端點：獲取並增加訪問計數
-    if (urlPath === '/api/pageviews/hit') {
-        console.log('🔥 API hit 端點被調用');
-        const count = incrementCounter();
-        const response = { value: count };
-        res.writeHead(200, { 
-            'Content-Type': 'application/json',
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache',
-            'Expires': '0',
-            'Access-Control-Allow-Origin': '*'
-        });
-        res.end(JSON.stringify(response));
-        console.log('✅ 返回計數:', response);
-        return;
-    }
-
-    // API 端點：只獲取訪問計數（不增加）
-    if (urlPath === '/api/pageviews/get') {
-        console.log('📊 API get 端點被調用');
-        const count = getCounter();
-        const response = { value: count };
-        res.writeHead(200, { 
-            'Content-Type': 'application/json',
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache',
-            'Expires': '0',
-            'Access-Control-Allow-Origin': '*'
-        });
-        res.end(JSON.stringify(response));
-        console.log('✅ 返回計數:', response);
-        return;
-    }
-
-    // 處理根路徑
-    // 移除查詢字符串（例如 ?v=3.0）
-    const urlWithoutQuery = req.url.split('?')[0];
-    let filePath = '.' + urlWithoutQuery;
-    
-    if (filePath === './') {
-        filePath = './index.html';
-    }
-
+function buildStaticHeaders(filePath) {
     const extname = String(path.extname(filePath)).toLowerCase();
-    const contentType = mimeTypes[extname] || 'application/octet-stream';
-    
-    console.log(`📂 請求文件: ${req.url} -> ${filePath}`);
-
-    // v2.0: Allow iframe embedding from roster app
-    // v8.1: Allow geolocation in iframe
-    const frameHeaders = {
-        'Content-Security-Policy': "frame-ancestors 'self' https://ndhaedroster.up.railway.app https://*.up.railway.app http://localhost:* http://127.0.0.1:*",
-        'Permissions-Policy': 'geolocation=(self "https://ndhaedroster.up.railway.app" "https://*.up.railway.app" "http://localhost:*" "http://127.0.0.1:*")'
+    const headers = {
+        'Content-Type': MIME_TYPES[extname] || 'application/octet-stream',
+        ...FRAME_HEADERS
     };
 
-    fs.readFile(filePath, (error, content) => {
-        if (error) {
-            if (error.code === 'ENOENT') {
-                // 文件不存在，返回 index.html
-                fs.readFile('./index.html', (error, content) => {
-                    if (error) {
-                        res.writeHead(500);
-                        res.end('Error loading index.html');
-                    } else {
-                        res.writeHead(200, { 
-                            'Content-Type': 'text/html',
-                            'Cache-Control': 'no-cache, no-store, must-revalidate',
-                            'Pragma': 'no-cache',
-                            'Expires': '0',
-                            ...frameHeaders
-                        });
-                        res.end(content, 'utf-8');
-                    }
-                });
-            } else {
-                res.writeHead(500);
-                res.end('Server Error: ' + error.code);
-            }
-        } else {
-            // 為 JavaScript 和 HTML 文件設置不緩存
-            const headers = { 'Content-Type': contentType, ...frameHeaders };
-            if (extname === '.js' || extname === '.html') {
-                headers['Cache-Control'] = 'no-cache, no-store, must-revalidate';
-                headers['Pragma'] = 'no-cache';
-                headers['Expires'] = '0';
-            } else {
-                // 其他靜態資源可以緩存 1 小時
-                headers['Cache-Control'] = 'public, max-age=3600';
-            }
-            
-            res.writeHead(200, headers);
-            res.end(content, 'utf-8');
-        }
+    if (TEXT_FILE_EXTENSIONS.has(extname)) {
+        headers['Cache-Control'] = 'no-cache, no-store, must-revalidate';
+        headers['Pragma'] = 'no-cache';
+        headers['Expires'] = '0';
+    } else {
+        headers['Cache-Control'] = 'public, max-age=3600';
+    }
+
+    return headers;
+}
+
+function sendJson(res, statusCode, payload) {
+    res.writeHead(statusCode, {
+        'Content-Type': 'application/json; charset=utf-8',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+        'Access-Control-Allow-Origin': '*',
+        'X-Content-Type-Options': 'nosniff'
     });
-});
+    res.end(JSON.stringify(payload));
+}
 
-server.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running at http://0.0.0.0:${PORT}/`);
-});
+function sendText(res, statusCode, message) {
+    res.writeHead(statusCode, {
+        'Content-Type': 'text/plain; charset=utf-8',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+        'X-Content-Type-Options': 'nosniff'
+    });
+    res.end(message);
+}
 
+function resolvePublicFilePath(urlPath, baseDir = __dirname) {
+    if (urlPath === '/') {
+        return path.join(baseDir, 'index.html');
+    }
+
+    const relativePath = decodeURIComponent(urlPath).replace(/^\/+/, '');
+
+    if (!relativePath || relativePath.includes('\0')) {
+        return null;
+    }
+
+    if (relativePath.includes('/') || relativePath.includes('\\') || relativePath.startsWith('.')) {
+        return null;
+    }
+
+    if (!PUBLIC_FILES.has(relativePath)) {
+        return null;
+    }
+
+    return path.join(baseDir, relativePath);
+}
+
+function createRequestHandler(options = {}) {
+    const env = options.env || process.env;
+    const baseDir = options.baseDir || __dirname;
+    const counterFile = options.counterFile || getCounterFile(env);
+
+    ensureDataStorage(counterFile, env);
+
+    return (req, res) => {
+        const timestamp = new Date().toISOString();
+        const requestUrl = new URL(req.url, 'http://127.0.0.1');
+        const urlPath = requestUrl.pathname;
+
+        console.log(`[${timestamp}] ${req.method} ${req.url}`);
+
+        if (req.method !== 'GET' && req.method !== 'HEAD') {
+            res.writeHead(405, { Allow: 'GET, HEAD' });
+            res.end();
+            return;
+        }
+
+        if (urlPath === '/api/pageviews/hit') {
+            const count = incrementCounter(counterFile);
+            sendJson(res, 200, { value: count });
+            return;
+        }
+
+        if (urlPath === '/api/pageviews/get') {
+            const count = getCounter(counterFile);
+            sendJson(res, 200, { value: count });
+            return;
+        }
+
+        if (urlPath.includes('..') || urlPath.startsWith('/.')) {
+            sendText(res, 403, 'Forbidden');
+            return;
+        }
+
+        const filePath = resolvePublicFilePath(urlPath, baseDir);
+
+        if (!filePath) {
+            sendText(res, 404, 'Not Found');
+            return;
+        }
+
+        fs.readFile(filePath, (error, content) => {
+            if (error) {
+                if (error.code === 'ENOENT') {
+                    sendText(res, 404, 'Not Found');
+                    return;
+                }
+
+                console.error('❌ 讀取靜態文件失敗:', error);
+                sendText(res, 500, `Server Error: ${error.code}`);
+                return;
+            }
+
+            const headers = buildStaticHeaders(filePath);
+            res.writeHead(200, headers);
+
+            if (req.method === 'HEAD') {
+                res.end();
+                return;
+            }
+
+            res.end(content);
+        });
+    };
+}
+
+function createServer(options = {}) {
+    return http.createServer(createRequestHandler(options));
+}
+
+if (require.main === module) {
+    const server = createServer();
+    server.listen(PORT, '0.0.0.0', () => {
+        console.log(`Server running at http://0.0.0.0:${PORT}/`);
+    });
+}
+
+module.exports = {
+    PUBLIC_FILES,
+    createRequestHandler,
+    createServer,
+    ensureDataStorage,
+    getCounter,
+    getCounterFile,
+    incrementCounter,
+    resolvePublicFilePath
+};

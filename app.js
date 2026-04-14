@@ -67,7 +67,7 @@ const HOSPITALS_DATA = {
         nameEn: 'Tseung Kwan O Hospital',
         cluster: 'KEC',
         clusterName: '九龍東聯網',
-        district: '九龍',
+        district: '新界',
         address: '新界將軍澳坑口寶寧里2號',
         phone: '2208 0111',
         lat: 22.3147,
@@ -127,7 +127,7 @@ const HOSPITALS_DATA = {
         nameEn: 'Yan Chai Hospital',
         cluster: 'KWC',
         clusterName: '九龍西聯網',
-        district: '九龍',
+        district: '新界',
         address: '新界荃灣仁濟街7-11號',
         phone: '2417 8383',
         lat: 22.3695,
@@ -187,7 +187,7 @@ const HOSPITALS_DATA = {
         nameEn: 'North Lantau Hospital',
         cluster: 'KWC',
         clusterName: '九龍西聯網',
-        district: '九龍',
+        district: '新界',
         address: '新界大嶼山東涌松仁路8號',
         phone: '3467 7000',
         lat: 22.2889,
@@ -211,7 +211,7 @@ const HOSPITALS_DATA = {
         nameEn: 'Cheung Chau Hospital',
         cluster: 'HKE',
         clusterName: '港島東聯網',
-        district: '香港島',
+        district: '新界',
         address: '香港長洲東灣東灣路2號',
         phone: '2981 9441',
         lat: 22.2084,
@@ -220,6 +220,88 @@ const HOSPITALS_DATA = {
     }
 };
 
+const DEFAULT_LOCATION = {
+    lat: 22.3019,
+    lng: 114.1742
+};
+
+const PRIMARY_WAIT_LABEL = '第 IV/V 類 95% 輪候時間';
+const T3_WAIT_LABEL = '第 III 類 50%';
+const T45_WAIT_LABEL = '第 IV/V 類 50%';
+
+function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, (char) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+    }[char]));
+}
+
+function sanitizePhoneNumber(phone) {
+    return String(phone ?? '').replace(/[^\d+]/g, '');
+}
+
+function formatDateTimeInHongKong(date, includeSeconds = false) {
+    if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
+        return '--';
+    }
+
+    const formatter = new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'Asia/Hong_Kong',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: includeSeconds ? '2-digit' : undefined,
+        hour12: false
+    });
+
+    const parts = Object.fromEntries(
+        formatter
+            .formatToParts(date)
+            .filter((part) => part.type !== 'literal')
+            .map((part) => [part.type, part.value])
+    );
+
+    return includeSeconds
+        ? `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}:${parts.second}`
+        : `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}`;
+}
+
+function formatOfficialUpdateTime(rawTime) {
+    if (!rawTime) {
+        return '未有資料';
+    }
+
+    const trimmed = String(rawTime).trim();
+    const chineseMatch = trimmed.match(
+        /^(\d{4})年(\d{1,2})月(\d{1,2})日\s*(上午|下午)?\s*(\d{1,2})時(\d{2})分$/
+    );
+
+    if (chineseMatch) {
+        const [, year, month, day, meridiem, hourStr, minute] = chineseMatch;
+        let hour = Number.parseInt(hourStr, 10);
+
+        if (meridiem === '下午' && hour < 12) {
+            hour += 12;
+        } else if (meridiem === '上午' && hour === 12) {
+            hour = 0;
+        }
+
+        return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')} ${String(hour).padStart(2, '0')}:${minute}`;
+    }
+
+    const parsed = new Date(trimmed);
+    if (!Number.isNaN(parsed.getTime())) {
+        return formatDateTimeInHongKong(parsed);
+    }
+
+    return trimmed;
+}
+
 // 全局變量
 let userLocation = null;
 let isUsingDefaultLocation = false; // 追踪是否使用默認位置
@@ -227,10 +309,159 @@ let currentData = [];
 let refreshTimer = null;
 let retryTimer = null;
 let isConnected = false;
+let isFetchingAEDData = false;
+let currentSourceUpdateTime = '';
+let lastSuccessfulFetchTime = null;
+let lastWeatherFetchAt = 0;
 
 // API URLs - 醫管局 API 已於 2025-10-13 更新
 const AED_API_URL = 'https://www.ha.org.hk/opendata/aed/aedwtdata2-tc.json';
 const WEATHER_WARNINGS_URL = 'https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=warnsum&lang=tc';
+
+function cloneDefaultLocation() {
+    return { ...DEFAULT_LOCATION };
+}
+
+function setLiveSyncState(state, text) {
+    const badge = document.getElementById('live-badge');
+    const badgeText = document.getElementById('live-badge-text');
+    const defaultText = {
+        connected: '官方資料正常',
+        connecting: '同步中',
+        stale: '資料暫緩',
+        error: '同步失敗'
+    };
+
+    if (badge) {
+        badge.className = `live-badge ${state}`;
+    }
+
+    if (badgeText) {
+        badgeText.textContent = text || defaultText[state] || defaultText.connecting;
+    }
+}
+
+function setSelectValueIfValid(selectId, requestedValue, fallbackValue) {
+    const select = document.getElementById(selectId);
+    if (!select) {
+        return;
+    }
+
+    const hasRequestedValue = Array.from(select.options).some((option) => option.value === requestedValue);
+    select.value = hasRequestedValue ? requestedValue : fallbackValue;
+}
+
+function initializeFiltersFromUrl() {
+    const urlParams = new URLSearchParams(window.location.search);
+    setSelectValueIfValid('sort-by', urlParams.get('sort') || 'distance', 'distance');
+    setSelectValueIfValid('filter-cluster', urlParams.get('cluster') || 'all', 'all');
+    setSelectValueIfValid('filter-district', urlParams.get('district') || 'all', 'all');
+}
+
+function recalculateHospitalDistances(hospitals, location) {
+    if (!Array.isArray(hospitals) || !location) {
+        return [];
+    }
+
+    return hospitals.map((hospital) => ({
+        ...hospital,
+        distance: calculateDistance(location.lat, location.lng, hospital.lat, hospital.lng)
+    }));
+}
+
+function getFilteredAndSortedHospitals(hospitals, { sortBy, filterCluster, filterDistrict }) {
+    const filteredData = hospitals.filter((hospital) => {
+        if (filterCluster !== 'all' && hospital.cluster !== filterCluster) {
+            return false;
+        }
+
+        if (filterDistrict !== 'all' && hospital.district !== filterDistrict) {
+            return false;
+        }
+
+        return true;
+    });
+
+    filteredData.sort((a, b) => {
+        if (sortBy === 'distance') {
+            return a.distance - b.distance;
+        }
+
+        if (sortBy === 'waiting-time') {
+            const timeA = parseWaitingTime(a.topWait);
+            const timeB = parseWaitingTime(b.topWait);
+            return timeA - timeB;
+        }
+
+        if (sortBy === 'name') {
+            return a.name.localeCompare(b.name, 'zh-HK');
+        }
+
+        return 0;
+    });
+
+    return filteredData;
+}
+
+function calculateQuickStats(hospitals) {
+    if (!Array.isArray(hospitals) || hospitals.length === 0) {
+        return {
+            fastestWait: '--',
+            averageWait: '--',
+            hospitalCount: '0'
+        };
+    }
+
+    let fastestTime = Infinity;
+    let fastestWait = '--';
+    let totalMinutes = 0;
+    let validCount = 0;
+
+    hospitals.forEach((hospital) => {
+        const minutes = parseWaitingTime(hospital.topWait);
+        if (minutes < 999999) {
+            if (minutes < fastestTime) {
+                fastestTime = minutes;
+                fastestWait = hospital.topWait;
+            }
+            totalMinutes += minutes;
+            validCount += 1;
+        }
+    });
+
+    let averageWait = '--';
+    if (validCount > 0) {
+        const avgMinutes = Math.round(totalMinutes / validCount);
+        averageWait = avgMinutes < 60 ? `${avgMinutes} 分鐘` : `${(avgMinutes / 60).toFixed(1)} 小時`;
+    }
+
+    return {
+        fastestWait,
+        averageWait,
+        hospitalCount: hospitals.length.toString()
+    };
+}
+
+function normalizeWeatherWarnings(data) {
+    if (!data || typeof data !== 'object') {
+        return [];
+    }
+
+    if (Array.isArray(data.WTMSGC)) {
+        return data.WTMSGC
+            .map((warning) => warning?.name)
+            .filter(Boolean);
+    }
+
+    return Object.values(data)
+        .filter((warning) => warning && typeof warning === 'object')
+        .map((warning) => warning.name || warning.code)
+        .filter(Boolean);
+}
+
+function shouldRefreshWeather() {
+    return Date.now() - lastWeatherFetchAt > 10 * 60 * 1000;
+}
 
 // Fetch 帶超時功能
 async function fetchWithTimeout(url, timeout = 10000) {
@@ -240,7 +471,7 @@ async function fetchWithTimeout(url, timeout = 10000) {
     try {
         const response = await fetch(url, { 
             signal: controller.signal,
-            cache: 'no-cache'
+            cache: 'no-store'
         });
         clearTimeout(timeoutId);
         return response;
@@ -254,80 +485,74 @@ async function fetchWithTimeout(url, timeout = 10000) {
 }
 
 // 初始化
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('📱 頁面開始初始化...');
-    
-    // 安全機制：15秒後強制顯示頁面（防止卡住）
-    const safetyTimeout = setTimeout(() => {
-        console.warn('⚠️ 初始化超時，強制顯示頁面');
-        const loadingScreen = document.getElementById('loading-screen');
-        const mainContent = document.getElementById('main-content');
-        if (loadingScreen && mainContent) {
-            loadingScreen.classList.add('hidden');
-            mainContent.classList.remove('hidden');
-            
-            // 顯示超時警告
-            const container = document.getElementById('hospitals-container');
-            if (container && !container.innerHTML) {
-                container.innerHTML = `
-                    <div style="text-align: center; padding: 40px; color: #666;">
-                        <h3>⚠️ 系統載入時間過長</h3>
-                        <p>請檢查網絡連接後重新整理頁面</p>
-                        <button onclick="location.reload()" style="margin-top: 20px; padding: 10px 20px; font-size: 16px; cursor: pointer;">
-                            🔄 重新整理
-                        </button>
-                    </div>
-                `;
+if (typeof document !== 'undefined') {
+    document.addEventListener('DOMContentLoaded', () => {
+        console.log('📱 頁面開始初始化...');
+        setLiveSyncState('connecting');
+        
+        // 安全機制：15秒後強制顯示頁面（防止卡住）
+        const safetyTimeout = setTimeout(() => {
+            console.warn('⚠️ 初始化超時，強制顯示頁面');
+            const loadingScreen = document.getElementById('loading-screen');
+            const mainContent = document.getElementById('main-content');
+            if (loadingScreen && mainContent) {
+                loadingScreen.classList.add('hidden');
+                mainContent.classList.remove('hidden');
+                
+                // 顯示超時警告
+                const container = document.getElementById('hospitals-container');
+                if (container && !container.innerHTML) {
+                    container.innerHTML = `
+                        <div style="text-align: center; padding: 40px; color: #666;">
+                            <h3>⚠️ 系統載入時間過長</h3>
+                            <p>請檢查網絡連接後重新整理頁面</p>
+                            <button onclick="location.reload()" style="margin-top: 20px; padding: 10px 20px; font-size: 16px; cursor: pointer;">
+                                🔄 重新整理
+                            </button>
+                        </div>
+                    `;
+                }
             }
-        }
-    }, 15000);
-    
-    // 主應用初始化
-    initializeApp()
-        .then(() => {
-            clearTimeout(safetyTimeout);
-            console.log('✅ 主應用初始化成功');
-        })
-        .catch(error => {
-            clearTimeout(safetyTimeout);
-            console.error('❌ 主應用初始化失敗:', error);
-            // 即使失敗也要顯示頁面
-            document.getElementById('loading-screen').classList.add('hidden');
-            document.getElementById('main-content').classList.remove('hidden');
-        });
-    
-    // 啟動實時時鐘
-    startRealtimeClock();
-    
-    // 延遲啟動頁面計數器，不阻塞主流程
-    setTimeout(() => {
-        initPageViewCounter().catch(error => {
-            console.error('⚠️ 頁面計數器初始化失敗（不影響主功能）:', error);
-        });
-    }, 1000);
-});
+        }, 15000);
+        
+        // 主應用初始化
+        initializeApp()
+            .then(() => {
+                clearTimeout(safetyTimeout);
+                console.log('✅ 主應用初始化成功');
+            })
+            .catch((error) => {
+                clearTimeout(safetyTimeout);
+                console.error('❌ 主應用初始化失敗:', error);
+                setLiveSyncState('error');
+                // 即使失敗也要顯示頁面
+                document.getElementById('loading-screen').classList.add('hidden');
+                document.getElementById('main-content').classList.remove('hidden');
+            });
+        
+        // 啟動實時時鐘
+        startRealtimeClock();
+        
+        // 延遲啟動頁面計數器，不阻塞主流程
+        setTimeout(() => {
+            initPageViewCounter().catch((error) => {
+                console.error('⚠️ 頁面計數器初始化失敗（不影響主功能）:', error);
+            });
+        }, 1000);
+    });
+}
 
 async function initializeApp() {
+    initializeFiltersFromUrl();
+    document.getElementById('sort-by').addEventListener('change', renderHospitals);
+    document.getElementById('filter-cluster').addEventListener('change', renderHospitals);
+    document.getElementById('filter-district').addEventListener('change', renderHospitals);
+
     updateLoadingStatus('正在獲取您的位置...');
     await getUserLocation();
     
     updateLoadingStatus('正在連接急症室數據系統...');
     await fetchAEDData();
-    
-    // 從 URL 參數或預設為距離排序
-    const urlParams = new URLSearchParams(window.location.search);
-    const defaultSort = urlParams.get('sort') || 'distance';
-    const defaultCluster = urlParams.get('cluster') || 'all';
-    const defaultDistrict = urlParams.get('district') || 'all';
-    
-    document.getElementById('sort-by').value = defaultSort;
-    document.getElementById('filter-cluster').value = defaultCluster;
-    document.getElementById('filter-district').value = defaultDistrict;
-    
-    // 設置控制面板事件監聽器
-    document.getElementById('sort-by').addEventListener('change', renderHospitals);
-    document.getElementById('filter-cluster').addEventListener('change', renderHospitals);
-    document.getElementById('filter-district').addEventListener('change', renderHospitals);
     
     // 檢查是否使用默認位置，顯示提示
     checkAndShowLocationPrompt();
@@ -428,27 +653,30 @@ function showLocationPrompt() {
     }
     
     // 添加動畫樣式
-    const style = document.createElement('style');
-    style.textContent = `
-        @keyframes slideDown {
-            from {
-                opacity: 0;
-                transform: translateX(-50%) translateY(-20px);
+    if (!document.getElementById('location-prompt-styles')) {
+        const style = document.createElement('style');
+        style.id = 'location-prompt-styles';
+        style.textContent = `
+            @keyframes slideDown {
+                from {
+                    opacity: 0;
+                    transform: translateX(-50%) translateY(-20px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateX(-50%) translateY(0);
+                }
             }
-            to {
-                opacity: 1;
-                transform: translateX(-50%) translateY(0);
+            #enable-location-btn:hover {
+                transform: scale(1.05);
+                box-shadow: 0 4px 12px rgba(0,0,0,0.2);
             }
-        }
-        #enable-location-btn:hover {
-            transform: scale(1.05);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-        }
-        #dismiss-location-btn:hover {
-            background: rgba(255,255,255,0.1);
-        }
-    `;
-    document.head.appendChild(style);
+            #dismiss-location-btn:hover {
+                background: rgba(255,255,255,0.1);
+            }
+        `;
+        document.head.appendChild(style);
+    }
     
     document.body.appendChild(prompt);
     
@@ -495,8 +723,10 @@ async function requestRealLocation() {
                 localStorage.setItem('userLocation', JSON.stringify(userLocation));
                 localStorage.setItem('locationTimestamp', Date.now().toString());
                 localStorage.removeItem('isDefaultLocation');
+                localStorage.removeItem('geolocationError');
                 
-                // 重新渲染醫院列表
+                // 重新計算距離並渲染醫院列表
+                currentData = recalculateHospitalDistances(currentData, userLocation);
                 renderHospitals();
                 
                 // 顯示成功提示
@@ -634,7 +864,7 @@ async function getUserLocation() {
                     userLocation = JSON.parse(cachedLocation);
                     // 檢查是否為默認位置（香港天文台座標）
                     const isDefault = localStorage.getItem('isDefaultLocation') === 'true' ||
-                                    (userLocation.lat === 22.3019 && userLocation.lng === 114.1742);
+                                    (userLocation.lat === DEFAULT_LOCATION.lat && userLocation.lng === DEFAULT_LOCATION.lng);
                     isUsingDefaultLocation = isDefault;
                     const hoursLeft = Math.round((twentyFourHours - cacheAge) / 3600000);
                     const locationType = isDefault ? '⚠️ 默認位置（香港天文台）' : '✅ 真實位置';
@@ -648,6 +878,7 @@ async function getUserLocation() {
                         localStorage.removeItem('isDefaultLocation');
                         // 不返回，繼續執行下面的地理位置請求
                     } else {
+                        localStorage.removeItem('geolocationError');
                         resolve();
                         return;
                     }
@@ -669,7 +900,7 @@ async function getUserLocation() {
         const timeout = setTimeout(() => {
             console.log('⏱️ 地理位置請求超時，使用香港天文台位置（將顯示授權提示）');
             if (!userLocation) {
-                userLocation = { lat: 22.3019, lng: 114.1742 };
+                userLocation = cloneDefaultLocation();
                 isUsingDefaultLocation = true;
                 // 緩存默認位置（也設置 timestamp 避免重複請求）
                 localStorage.setItem('userLocation', JSON.stringify(userLocation));
@@ -693,6 +924,7 @@ async function getUserLocation() {
                     localStorage.setItem('userLocation', JSON.stringify(userLocation));
                     localStorage.setItem('locationTimestamp', Date.now().toString());
                     localStorage.removeItem('isDefaultLocation');
+                    localStorage.removeItem('geolocationError');
                     resolve();
                 },
                 (error) => {
@@ -709,7 +941,7 @@ async function getUserLocation() {
                     }
                     
                     // 用戶拒絕或無法獲取，使用默認位置
-                    userLocation = { lat: 22.3019, lng: 114.1742 };
+                    userLocation = cloneDefaultLocation();
                     isUsingDefaultLocation = true;
                     // 緩存默認位置（也設置 timestamp 避免重複請求）
                     localStorage.setItem('userLocation', JSON.stringify(userLocation));
@@ -727,7 +959,7 @@ async function getUserLocation() {
         } else {
             clearTimeout(timeout);
             console.log('❌ 瀏覽器不支持地理位置 API');
-            userLocation = { lat: 22.3019, lng: 114.1742 };
+            userLocation = cloneDefaultLocation();
             isUsingDefaultLocation = true;
             localStorage.setItem('userLocation', JSON.stringify(userLocation));
             localStorage.setItem('locationTimestamp', Date.now().toString());
@@ -739,8 +971,16 @@ async function getUserLocation() {
 
 // 獲取急症室數據
 async function fetchAEDData() {
+    if (isFetchingAEDData) {
+        console.log('⏭️ 已有急症室數據請求進行中，略過重複請求');
+        return;
+    }
+
+    isFetchingAEDData = true;
+
     try {
         updateConnectionStatus('connecting', '正在連接...');
+        setLiveSyncState('connecting');
         
         const response = await fetchWithTimeout(AED_API_URL, 10000);
         if (!response.ok) {
@@ -760,7 +1000,7 @@ async function fetchAEDData() {
         }
         
         // 處理數據
-        currentData = data.waitTime.map(hospital => {
+        const mergedHospitals = data.waitTime.map((hospital) => {
             const hospCode = nameToCodeMap[hospital.hospName];
             const hospitalInfo = hospCode ? HOSPITALS_DATA[hospCode] : {
                 name: hospital.hospName,
@@ -770,8 +1010,8 @@ async function fetchAEDData() {
                 district: '未知',
                 address: '未知',
                 phone: '未知',
-                lat: 22.3019,
-                lng: 114.1742,
+                lat: DEFAULT_LOCATION.lat,
+                lng: DEFAULT_LOCATION.lng,
                 specialtiesWarning: null
             };
             
@@ -779,39 +1019,48 @@ async function fetchAEDData() {
                 ...hospital,
                 ...hospitalInfo,
                 hospCode: hospCode || 'unknown',
-                // 使用 t45p95 作為最長等候時間（次緊急/非緊急類別）
+                // 以醫管局 IV/V 類 95 百分位作為主要參考值。
                 topWait: hospital.t45p95 || '未有資料',
-                distance: calculateDistance(
-                    userLocation.lat,
-                    userLocation.lng,
-                    hospitalInfo.lat,
-                    hospitalInfo.lng
-                )
+                sourceUpdateTime: data.updateTime
             };
         });
+
+        currentData = recalculateHospitalDistances(mergedHospitals, userLocation);
+        currentSourceUpdateTime = data.updateTime;
+        lastSuccessfulFetchTime = new Date();
+        isConnected = true;
+
+        if (retryTimer) {
+            clearTimeout(retryTimer);
+            retryTimer = null;
+        }
         
         // 更新最後更新時間
         updateLastUpdateTime(data.updateTime);
         
         // 渲染醫院列表
         renderHospitals();
-        
-        // 獲取天氣數據
-        await fetchWeatherData();
-        
+
         // 顯示主頁面，隱藏加載畫面
         document.getElementById('loading-screen').classList.add('hidden');
         document.getElementById('main-content').classList.remove('hidden');
         
         // 更新連接狀態
-        isConnected = true;
-        updateConnectionStatus('connected', `已連接 | 數據更新時間: ${data.updateTime}`);
+        updateConnectionStatus('connected', `已連接 | 官方更新: ${formatOfficialUpdateTime(data.updateTime)}`);
+        setLiveSyncState('connected');
         
         // 設置15秒後自動刷新
         scheduleRefresh();
+
+        if (shouldRefreshWeather()) {
+            fetchWeatherData().catch((weatherError) => {
+                console.error('⚠️ 天氣數據更新失敗（不影響主功能）:', weatherError);
+            });
+        }
         
     } catch (error) {
         console.error('獲取數據失敗:', error);
+        isConnected = false;
         
         // 即使失敗也要顯示主頁面，避免卡在加載畫面
         document.getElementById('loading-screen').classList.add('hidden');
@@ -824,7 +1073,16 @@ async function fetchAEDData() {
             ? '網絡連接失敗，請檢查網絡設定'
             : `連接失敗: ${error.message}`;
         
-        updateConnectionStatus('error', `${errorMsg} | 將在5秒後重試...`);
+        if (currentData.length > 0 && currentSourceUpdateTime) {
+            updateConnectionStatus(
+                'stale',
+                `${errorMsg} | 顯示上次成功資料（官方更新: ${formatOfficialUpdateTime(currentSourceUpdateTime)}） | 5秒後重試`
+            );
+            setLiveSyncState('stale');
+        } else {
+            updateConnectionStatus('error', `${errorMsg} | 將在5秒後重試...`);
+            setLiveSyncState('error');
+        }
         
         // 在醫院列表區域顯示錯誤提示
         const container = document.getElementById('hospitals-container');
@@ -843,6 +1101,8 @@ async function fetchAEDData() {
         retryTimer = setTimeout(() => {
             fetchAEDData();
         }, 5000);
+    } finally {
+        isFetchingAEDData = false;
     }
 }
 
@@ -870,36 +1130,26 @@ function renderHospitals() {
     const filterCluster = document.getElementById('filter-cluster').value;
     const filterDistrict = document.getElementById('filter-district').value;
     
-    // 過濾數據
-    let filteredData = currentData.filter(hospital => {
-        if (filterCluster !== 'all' && hospital.cluster !== filterCluster) {
-            return false;
-        }
-        if (filterDistrict !== 'all' && hospital.district !== filterDistrict) {
-            return false;
-        }
-        return true;
-    });
-    
-    // 排序數據
-    filteredData.sort((a, b) => {
-        if (sortBy === 'distance') {
-            return a.distance - b.distance;
-        } else if (sortBy === 'waiting-time') {
-            const timeA = parseWaitingTime(a.topWait);
-            const timeB = parseWaitingTime(b.topWait);
-            return timeA - timeB;
-        } else if (sortBy === 'name') {
-            return a.name.localeCompare(b.name, 'zh-HK');
-        }
-        return 0;
+    const filteredData = getFilteredAndSortedHospitals(currentData, {
+        sortBy,
+        filterCluster,
+        filterDistrict
     });
     
     // 生成HTML with staggered animation
-    container.innerHTML = filteredData.map((hospital, index) => createHospitalCard(hospital, index)).join('');
+    if (filteredData.length === 0) {
+        container.innerHTML = `
+            <div style="text-align: center; padding: 40px; color: #666;">
+                <h3>找不到符合條件的醫院</h3>
+                <p>請調整排序或篩選條件後再試。</p>
+            </div>
+        `;
+    } else {
+        container.innerHTML = filteredData.map((hospital, index) => createHospitalCard(hospital, index)).join('');
+    }
     
     // 更新快速統計
-    updateQuickStats();
+    updateQuickStats(filteredData);
 }
 
 // 解析等候時間（轉換為分鐘）
@@ -947,6 +1197,10 @@ function getWaitingTimeLevel(waitStr) {
 function createHospitalCard(hospital, index) {
     const waitLevel = getWaitingTimeLevel(hospital.topWait);
     const mapUrl = `https://www.google.com/maps/search/?api=1&query=${hospital.lat},${hospital.lng}`;
+    const telHref = sanitizePhoneNumber(hospital.phone);
+    const distanceText = Number.isFinite(hospital.distance)
+        ? `${isUsingDefaultLocation ? '約 ' : ''}${hospital.distance.toFixed(1)} 公里`
+        : '未有資料';
     
     // Animation delay for staggered reveal
     const animDelay = Math.min(index * 0.05, 0.5);
@@ -954,31 +1208,31 @@ function createHospitalCard(hospital, index) {
     return `
         <div class="hospital-card" style="animation-delay: ${animDelay}s">
             <div class="hospital-header">
-                <div class="hospital-name">${hospital.name}</div>
-                <div class="hospital-name-en">${hospital.nameEn}</div>
+                <div class="hospital-name">${escapeHtml(hospital.name)}</div>
+                <div class="hospital-name-en">${escapeHtml(hospital.nameEn)}</div>
                 <div class="hospital-tags">
-                    <span class="hospital-cluster">${hospital.clusterName}</span>
-                    <span class="hospital-district">${hospital.district}</span>
+                    <span class="hospital-cluster">${escapeHtml(hospital.clusterName)}</span>
+                    <span class="hospital-district">${escapeHtml(hospital.district)}</span>
                 </div>
             </div>
             
             <div class="waiting-time-display wait-level-${waitLevel}">
-                <div class="waiting-label">預計等候時間</div>
-                <div class="waiting-time">${hospital.topWait}</div>
+                <div class="waiting-label">${PRIMARY_WAIT_LABEL}</div>
+                <div class="waiting-time">${escapeHtml(hospital.topWait)}</div>
             </div>
             
             ${(hospital.t3p50 || hospital.t45p50) ? `
                 <div class="detail-times">
                     ${hospital.t3p50 ? `
                         <div class="detail-time-item">
-                            <span class="detail-time-label">🟡 緊急</span>
-                            <span class="detail-time-value">${hospital.t3p50}</span>
+                            <span class="detail-time-label">${T3_WAIT_LABEL}</span>
+                            <span class="detail-time-value">${escapeHtml(hospital.t3p50)}</span>
                         </div>
                     ` : ''}
                     ${hospital.t45p50 ? `
                         <div class="detail-time-item">
-                            <span class="detail-time-label">🔵 次緊急</span>
-                            <span class="detail-time-value">${hospital.t45p50}</span>
+                            <span class="detail-time-label">${T45_WAIT_LABEL}</span>
+                            <span class="detail-time-value">${escapeHtml(hospital.t45p50)}</span>
                         </div>
                     ` : ''}
                 </div>
@@ -986,28 +1240,29 @@ function createHospitalCard(hospital, index) {
             
             <div class="hospital-distance">
                 <span>📍</span>
-                <span>${hospital.distance.toFixed(1)} 公里</span>
+                <span>${distanceText}</span>
             </div>
             
             <div class="hospital-info">
-                <div><strong>地址</strong> ${hospital.address}</div>
-                <div><strong>電話</strong> ${hospital.phone}</div>
+                <div><strong>地址</strong> ${escapeHtml(hospital.address)}</div>
+                <div><strong>電話</strong> ${escapeHtml(hospital.phone)}</div>
             </div>
             
             ${hospital.specialtiesWarning ? `
                 <div class="specialties-info">
-                    <strong>${hospital.specialtiesWarning}</strong>
+                    <strong>${escapeHtml(hospital.specialtiesWarning)}</strong>
+                    <div>請以醫院最新公布及分流安排為準。</div>
                 </div>
             ` : ''}
             
             <div class="hospital-actions">
-                <a href="${mapUrl}" target="_blank" class="btn btn-map">
+                <a href="${mapUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-map">
                     <span>🗺️</span>
                     <span>導航</span>
                 </a>
-                <a href="tel:${hospital.phone.replace(/\s/g, '')}" class="btn btn-call">
+                <a href="${telHref ? `tel:${telHref}` : '#'}" class="btn btn-call${telHref ? '' : ' btn-disabled'}"${telHref ? '' : ' aria-disabled="true" tabindex="-1"'}>
                     <span>📞</span>
-                    <span>致電</span>
+                    <span>${telHref ? '致電' : '電話待核實'}</span>
                 </a>
             </div>
         </div>
@@ -1015,56 +1270,35 @@ function createHospitalCard(hospital, index) {
 }
 
 // 更新快速統計
-function updateQuickStats() {
-    if (currentData.length === 0) return;
-    
-    // 計算最短等候時間
-    let fastestTime = Infinity;
-    let fastestHospital = '';
-    let totalMinutes = 0;
-    let validCount = 0;
-    
-    currentData.forEach(hospital => {
-        const minutes = parseWaitingTime(hospital.topWait);
-        if (minutes < 999999) {
-            if (minutes < fastestTime) {
-                fastestTime = minutes;
-                fastestHospital = hospital.topWait;
-            }
-            totalMinutes += minutes;
-            validCount++;
-        }
-    });
-    
-    // 更新 UI
+function updateQuickStats(hospitals = currentData) {
+    const stats = calculateQuickStats(hospitals);
     const fastestEl = document.getElementById('stat-fastest');
     const averageEl = document.getElementById('stat-average');
     const hospitalsEl = document.getElementById('stat-hospitals');
     
-    if (fastestEl && fastestTime < Infinity) {
-        fastestEl.textContent = fastestHospital;
+    if (fastestEl) {
+        fastestEl.textContent = stats.fastestWait;
     }
     
-    if (averageEl && validCount > 0) {
-        const avgMinutes = Math.round(totalMinutes / validCount);
-        if (avgMinutes < 60) {
-            averageEl.textContent = `${avgMinutes} 分鐘`;
-        } else {
-            const hours = (avgMinutes / 60).toFixed(1);
-            averageEl.textContent = `${hours} 小時`;
-        }
+    if (averageEl) {
+        averageEl.textContent = stats.averageWait;
     }
     
     if (hospitalsEl) {
-        hospitalsEl.textContent = currentData.length.toString();
+        hospitalsEl.textContent = stats.hospitalCount;
     }
 }
 
 // 更新最後更新時間
 function updateLastUpdateTime(timeStr) {
-    const now = new Date();
-    const formatted = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
-    document.getElementById('last-update-time').textContent = formatted;
+    const el = document.getElementById('last-update-time');
+    if (!el) {
+        return;
+    }
+
+    const formatted = formatOfficialUpdateTime(timeStr);
+    el.textContent = formatted;
+    el.title = `醫管局官方更新時間：${timeStr}`;
 }
 
 // 更新連接狀態
@@ -1101,7 +1335,8 @@ async function fetchWeatherData() {
         if (!response.ok) throw new Error('無法獲取天氣數據');
         
         const data = await response.json();
-        const temp = data.temperature?.data?.[0]?.value || '未知';
+        const primaryStation = data.temperature?.data?.find((item) => item.place === '香港天文台') || data.temperature?.data?.[0];
+        const temp = primaryStation?.value || '未知';
         
         // 獲取降雨機率（從預報數據）
         const forecastUrl = 'https://data.weather.gov.hk/weatherAPI/opendata/weather.php?dataType=fnd&lang=tc';
@@ -1118,6 +1353,7 @@ async function fetchWeatherData() {
         
         document.getElementById('weather-temp').textContent = `🌡️ ${temp}°C`;
         document.getElementById('weather-desc').textContent = `🌧️ 降雨機率: ${rainChance}`;
+        lastWeatherFetchAt = Date.now();
         
         // 獲取天氣警告
         await fetchWeatherWarnings();
@@ -1136,11 +1372,17 @@ async function fetchWeatherWarnings() {
         
         const data = await response.json();
         const warningsContainer = document.getElementById('weather-warnings');
+
+        if (!warningsContainer) {
+            return;
+        }
+
+        const activeWarnings = normalizeWeatherWarnings(data);
         
-        if (data.WTMSGC && data.WTMSGC.length > 0) {
-            const warningsHTML = data.WTMSGC.map(warning => 
-                `<span class="warning-badge">${warning.name}</span>`
-            ).join('');
+        if (activeWarnings.length > 0) {
+            const warningsHTML = activeWarnings
+                .map((warningName) => `<span class="warning-badge">${escapeHtml(warningName)}</span>`)
+                .join('');
             warningsContainer.innerHTML = warningsHTML;
         } else {
             warningsContainer.innerHTML = '';
@@ -1332,4 +1574,22 @@ function startRealtimeViewsUpdate() {
     }, 10000);
 }
 
-
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        DEFAULT_LOCATION,
+        PRIMARY_WAIT_LABEL,
+        T3_WAIT_LABEL,
+        T45_WAIT_LABEL,
+        calculateDistance,
+        calculateQuickStats,
+        createHospitalCard,
+        escapeHtml,
+        formatOfficialUpdateTime,
+        getFilteredAndSortedHospitals,
+        getWaitingTimeLevel,
+        normalizeWeatherWarnings,
+        parseWaitingTime,
+        recalculateHospitalDistances,
+        sanitizePhoneNumber
+    };
+}

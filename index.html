@@ -25,7 +25,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
     <title>急症室等候時間</title>
-    <link rel="stylesheet" href="styles.css?v=2.0.1">
+    <link rel="stylesheet" href="styles.css?v=2.1.0">
 </head>
 <body>
     <!-- 加載畫面 -->
@@ -56,9 +56,9 @@
             <div class="header-top">
                 <div class="header-title-group">
                     <h1 class="app-title">急症室等候時間</h1>
-                    <span class="live-badge">
+                    <span class="live-badge connecting" id="live-badge">
                         <span class="live-dot"></span>
-                        即時更新
+                        <span id="live-badge-text">同步中</span>
                     </span>
                 </div>
                 <div class="header-time" id="current-time"></div>
@@ -160,6 +160,6 @@
         </footer>
     </div>
 
-    <script src="app.js?v=8.4"></script>
+    <script src="app.js?v=9.0.0"></script>
 </body>
 </html>
